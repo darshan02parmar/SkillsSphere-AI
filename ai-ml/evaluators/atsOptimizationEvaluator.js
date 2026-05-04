@@ -1,3 +1,5 @@
+import { normalizeSkillArray } from "../utils/skillNormalizer.js";
+
 /**
  * Evaluates ATS compatibility by checking for required sections, 
  * contact information, and formatting hygiene based on parsed data.
@@ -6,12 +8,14 @@ export const atsOptimizationEvaluator = ({ resumeData, weight = 0.15 }) => {
   const {
     experience = [],
     education = [],
-    skills = [],
+    skills: rawSkills = [],
     email,
     phone,
     linkedin,
     resumeText = ""
   } = resumeData;
+
+  const skills = normalizeSkillArray(rawSkills);
 
   const sectionResults = {
     experience: experience.length > 0,

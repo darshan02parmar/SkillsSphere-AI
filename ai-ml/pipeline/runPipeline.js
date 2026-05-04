@@ -66,6 +66,8 @@ export async function runPipeline({
         keywordEvaluator({
           resumeText,
           jobDescription,
+          resumeSkills: resumeData.skills || [],
+          jobSkills,
         })
       )
     : { score: null, name: "keywordMatch", message: "No job description provided" };

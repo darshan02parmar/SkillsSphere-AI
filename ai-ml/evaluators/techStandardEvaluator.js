@@ -1,4 +1,5 @@
 import techKeywords from "../data/techKeywords.json" with { type: "json" };
+import { normalizeSkillArray } from "../utils/skillNormalizer.js";
 
 /**
  * Evaluates the tech profile strength by checking for domain-specific skills.
@@ -10,8 +11,13 @@ export const techStandardEvaluator = ({ resumeText = "", weight = 0.15 }) => {
   const missingDomains = [];
 
   Object.keys(techKeywords).forEach(domain => {
-    const matches = techKeywords[domain].filter(skill => 
-      lowerText.includes(skill.toLowerCase())
+    // Normalize domain keywords to match our canonical forms
+    const normDomainKeywords = normalizeSkillArray(techKeywords[domain]);
+    
+    const matches = normDomainKeywords.filter(skill => 
+      lowerText.includes(skill) || 
+      (skill === 'nodejs' && lowerText.includes('node.js')) ||
+      (skill === 'csharp' && lowerText.includes('c#'))
     );
     domainMatches[domain] = matches;
   });

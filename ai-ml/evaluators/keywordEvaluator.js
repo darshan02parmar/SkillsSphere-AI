@@ -1,4 +1,5 @@
 import techKeywords from "../data/techKeywords.json" with { type: "json" };
+import { normalizeSkill, normalizeSkillArray } from "../utils/skillNormalizer.js";
 
 // --- Stop words (non-technical noise) ---
 const STOP_WORDS = new Set([
@@ -23,15 +24,22 @@ function normalizeText(text = "") {
 /**
  * Enhanced Keyword Evaluator:
  * 1. Extract keywords from JD (if provided)
- * 2. Fallback to domain-specific keywords from techKeywords.json
+ * 2. Use normalized skills from both Resume and JD for better matching
+ * 3. Fallback to domain-specific keywords from techKeywords.json
  */
 export const keywordEvaluator = ({
   resumeText = "",
   jobDescription = "",
+  resumeSkills = [],
+  jobSkills = [],
   weight = 0.2,
 }) => {
   const lowerResume = normalizeText(resumeText);
   const lowerJD = normalizeText(jobDescription);
+
+  // Apply Normalization to provided skill arrays
+  const normResumeSkills = normalizeSkillArray(resumeSkills);
+  const normJobSkills = normalizeSkillArray(jobSkills);
 
   // Combine JD keywords with our database keywords for broader detection
   const allDomainKeywords = Object.values(techKeywords).flat();
@@ -41,16 +49,31 @@ export const keywordEvaluator = ({
     lowerJD.includes(k.toLowerCase())
   );
   
-  // If no JD or no tech keywords found in JD, use a baseline set
-  const keywordsToSearch = jdKeywordsFound.length > 0 
-    ? [...new Set(jdKeywordsFound)] 
-    : ["react", "node.js", "javascript", "python", "aws", "docker", "sql", "api", "git", "typescript"];
+  // Final set of keywords to search for: combination of explicit JD skills and extracted keywords
+  const rawKeywordsToSearch = [...new Set([
+    ...normJobSkills,
+    ...jdKeywordsFound.map(k => k.toLowerCase())
+  ])];
+
+  // Normalize the search list to ensure synonyms match
+  const keywordsToSearch = normalizeSkillArray(rawKeywordsToSearch);
+
+  // If no keywords found, use a baseline set
+  if (keywordsToSearch.length === 0) {
+    keywordsToSearch.push(...normalizeSkillArray(["react", "nodejs", "javascript", "python", "aws", "docker", "sql", "api", "git", "typescript"]));
+  }
 
   const matchedKeywords = [];
   const missingKeywords = [];
 
   keywordsToSearch.forEach((keyword) => {
-    if (lowerResume.includes(keyword.toLowerCase())) {
+    // Match against normalized resume skills OR search in raw resume text
+    const isMatchedInArray = normResumeSkills.includes(keyword);
+    const isMatchedInText = lowerResume.includes(keyword) || 
+                           (keyword === 'nodejs' && lowerResume.includes('node.js')) || // manual edge case for text search
+                           (keyword === 'csharp' && lowerResume.includes('c#'));
+
+    if (isMatchedInArray || isMatchedInText) {
       matchedKeywords.push(keyword);
     } else {
       missingKeywords.push(keyword);
