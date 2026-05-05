@@ -1,0 +1,363 @@
+import React, { useEffect, useRef, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { useSelector } from "react-redux";
+import { io } from "socket.io-client";
+import Peer from "simple-peer";
+import { Mic, MicOff, Video, VideoOff, MonitorUp, Hand, MessageSquare, Users, PhoneOff, Send } from "lucide-react";
+import VideoTile from "../components/VideoTile";
+
+export default function ClassroomRoom() {
+  const { roomId } = useParams();
+  const navigate = useNavigate();
+  const { user, token } = useSelector((state) => state.auth);
+
+  const [socket, setSocket] = useState(null);
+  const [localStream, setLocalStream] = useState(null);
+  const [peers, setPeers] = useState([]); // Array of { peerId, peer, stream, user, isMuted, isHandRaised }
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState("");
+  const [activeTab, setActiveTab] = useState("chat"); // 'chat' or 'participants'
+
+  // Controls state
+  const [isMuted, setIsMuted] = useState(false);
+  const [isVideoOff, setIsVideoOff] = useState(false);
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const [isHandRaised, setIsHandRaised] = useState(false);
+
+  const peersRef = useRef([]); // To keep track of peer connections inside callbacks
+  const socketRef = useRef();
+  const localStreamRef = useRef();
+
+  useEffect(() => {
+    // Basic auth check
+    if (!token || !user) {
+      navigate("/login");
+      return;
+    }
+
+    // Initialize Socket
+    const s = io("http://localhost:5000");
+    setSocket(s);
+    socketRef.current = s;
+
+    // Get media permissions
+    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+      .then((stream) => {
+        setLocalStream(stream);
+        localStreamRef.current = stream;
+
+        // Join room once media is acquired
+        s.emit("join-room", { roomId, user: { id: user._id, name: user.name || user.email } });
+
+        // When we get the current participants list, we act as the "caller" and initiate peer connections
+        s.on("room-participants", (participants) => {
+          const peersArr = [];
+          participants.forEach(p => {
+            const peer = createPeer(p.socketId, s.id, stream, user);
+            peersRef.current.push({
+              peerId: p.socketId,
+              peer,
+              user: p.user,
+              isHandRaised: false,
+              isMuted: false
+            });
+            peersArr.push({
+              peerId: p.socketId,
+              peer,
+              user: p.user,
+              stream: null, // Will be populated on peer 'stream' event
+              isHandRaised: false,
+              isMuted: false
+            });
+          });
+          setPeers(peersArr);
+        });
+
+        // Handle incoming user (they just joined, they will initiate the call to us)
+        s.on("user-joined", (payload) => {
+          console.log("User joined", payload);
+          // We don't initiate here. We wait for their offer.
+        });
+
+        // Receiving an offer
+        s.on("webrtc-offer", (payload) => {
+          const peer = addPeer(payload.offer, payload.callerSocketId, stream, s);
+          
+          const newPeerObj = {
+            peerId: payload.callerSocketId,
+            peer,
+            user: payload.callerUser,
+            stream: null,
+            isHandRaised: false,
+            isMuted: false
+          };
+          
+          peersRef.current.push(newPeerObj);
+          setPeers(prev => [...prev, newPeerObj]);
+        });
+
+        // Receiving an answer
+        s.on("webrtc-answer", (payload) => {
+          const item = peersRef.current.find(p => p.peerId === payload.answererSocketId);
+          if (item) {
+            item.peer.signal(payload.answer);
+          }
+        });
+
+        // Other socket events
+        s.on("chat-message", (msg) => {
+          setChatMessages(prev => [...prev, msg]);
+        });
+
+        s.on("hand-raise-toggled", ({ socketId, isRaised }) => {
+          setPeers(prev => prev.map(p => p.peerId === socketId ? { ...p, isHandRaised: isRaised } : p));
+        });
+
+        s.on("user-left", ({ socketId }) => {
+          const item = peersRef.current.find(p => p.peerId === socketId);
+          if (item) {
+            item.peer.destroy();
+          }
+          peersRef.current = peersRef.current.filter(p => p.peerId !== socketId);
+          setPeers(prev => prev.filter(p => p.peerId !== socketId));
+        });
+      })
+      .catch(err => {
+        console.error("Failed to get local stream", err);
+        alert("Failed to access camera and microphone.");
+      });
+
+    return () => {
+      s.disconnect();
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach(t => t.stop());
+      }
+      peersRef.current.forEach(p => p.peer.destroy());
+    };
+  }, [roomId, user, token, navigate]);
+
+  // Peer Creation Logic (Caller)
+  function createPeer(userToSignal, callerId, stream, callerUser) {
+    const peer = new Peer({
+      initiator: true,
+      trickle: false,
+      stream,
+    });
+
+    peer.on("signal", signal => {
+      socketRef.current.emit("webrtc-offer", {
+        targetSocketId: userToSignal,
+        callerSocketId: callerId,
+        callerUser,
+        offer: signal
+      });
+    });
+
+    peer.on("stream", incomingStream => {
+      setPeers(prev => prev.map(p => {
+        if (p.peerId === userToSignal) return { ...p, stream: incomingStream };
+        return p;
+      }));
+    });
+
+    return peer;
+  }
+
+  // Peer Addition Logic (Receiver)
+  function addPeer(incomingSignal, callerId, stream, socketInst) {
+    const peer = new Peer({
+      initiator: false,
+      trickle: false,
+      stream,
+    });
+
+    peer.on("signal", signal => {
+      socketInst.emit("webrtc-answer", {
+        targetSocketId: callerId,
+        answer: signal
+      });
+    });
+
+    peer.on("stream", incomingStream => {
+      setPeers(prev => prev.map(p => {
+        if (p.peerId === callerId) return { ...p, stream: incomingStream };
+        return p;
+      }));
+    });
+
+    peer.signal(incomingSignal);
+    return peer;
+  }
+
+  const toggleMute = () => {
+    if (localStream) {
+      const audioTrack = localStream.getAudioTracks()[0];
+      if (audioTrack) {
+        audioTrack.enabled = !audioTrack.enabled;
+        setIsMuted(!audioTrack.enabled);
+      }
+    }
+  };
+
+  const toggleVideo = () => {
+    if (localStream) {
+      const videoTrack = localStream.getVideoTracks()[0];
+      if (videoTrack) {
+        videoTrack.enabled = !videoTrack.enabled;
+        setIsVideoOff(!videoTrack.enabled);
+      }
+    }
+  };
+
+  const toggleHandRaise = () => {
+    const newState = !isHandRaised;
+    setIsHandRaised(newState);
+    if (socket) {
+      socket.emit("toggle-hand-raise", { roomId, isRaised: newState });
+    }
+  };
+
+  const handleSendMessage = (e) => {
+    e.preventDefault();
+    if (!chatInput.trim() || !socket) return;
+
+    const msg = {
+      message: chatInput,
+      sender: { name: user.name || user.email },
+      timestamp: new Date().toISOString()
+    };
+    
+    socket.emit("chat-message", { roomId, message: chatInput });
+    setChatMessages(prev => [...prev, msg]);
+    setChatInput("");
+  };
+
+  const handleLeave = () => {
+    navigate("/classrooms");
+  };
+
+  return (
+    <div className="h-screen bg-[#020617] text-white flex flex-col pt-16">
+      <div className="flex-1 flex overflow-hidden">
+        {/* Main Video Area */}
+        <div className="flex-1 p-4 flex flex-col">
+          <div className="flex-1 bg-slate-900 rounded-2xl overflow-y-auto p-4 border border-slate-800">
+            {/* Grid Layout for Videos */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <VideoTile 
+                stream={localStream} 
+                user={{ name: user?.name || user?.email }} 
+                isLocal={true}
+                isMuted={isMuted}
+                isHandRaised={isHandRaised}
+              />
+              {peers.map((peerObj, index) => (
+                <VideoTile 
+                  key={index} 
+                  stream={peerObj.stream} 
+                  user={peerObj.user} 
+                  isLocal={false}
+                  isMuted={peerObj.isMuted}
+                  isHandRaised={peerObj.isHandRaised}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Controls Bar */}
+          <div className="mt-4 bg-slate-800/80 backdrop-blur-md border border-slate-700/50 rounded-2xl p-4 flex items-center justify-center space-x-4">
+            <button onClick={toggleMute} className={`p-4 rounded-xl transition-all ${isMuted ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30' : 'bg-slate-700 hover:bg-slate-600'}`}>
+              {isMuted ? <MicOff size={24} /> : <Mic size={24} />}
+            </button>
+            <button onClick={toggleVideo} className={`p-4 rounded-xl transition-all ${isVideoOff ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30' : 'bg-slate-700 hover:bg-slate-600'}`}>
+              {isVideoOff ? <VideoOff size={24} /> : <Video size={24} />}
+            </button>
+            <button onClick={toggleHandRaise} className={`p-4 rounded-xl transition-all ${isHandRaised ? 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30' : 'bg-slate-700 hover:bg-slate-600'}`}>
+              <Hand size={24} />
+            </button>
+            <button onClick={handleLeave} className="p-4 rounded-xl bg-red-600 hover:bg-red-700 transition-all text-white px-8 font-semibold flex items-center space-x-2">
+              <PhoneOff size={20} />
+              <span>Leave</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Sidebar */}
+        <div className="w-80 border-l border-slate-800 bg-slate-900/50 flex flex-col">
+          <div className="flex border-b border-slate-800">
+            <button 
+              className={`flex-1 py-4 text-sm font-medium flex items-center justify-center space-x-2 transition-colors ${activeTab === 'chat' ? 'border-b-2 border-indigo-500 text-indigo-400' : 'text-slate-400 hover:text-white'}`}
+              onClick={() => setActiveTab('chat')}
+            >
+              <MessageSquare size={16} />
+              <span>Chat</span>
+            </button>
+            <button 
+              className={`flex-1 py-4 text-sm font-medium flex items-center justify-center space-x-2 transition-colors ${activeTab === 'participants' ? 'border-b-2 border-indigo-500 text-indigo-400' : 'text-slate-400 hover:text-white'}`}
+              onClick={() => setActiveTab('participants')}
+            >
+              <Users size={16} />
+              <span>Participants ({peers.length + 1})</span>
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-4 flex flex-col">
+            {activeTab === 'chat' ? (
+              <>
+                <div className="flex-1 space-y-4 mb-4">
+                  {chatMessages.length === 0 && (
+                    <div className="text-center text-slate-500 mt-10">No messages yet.</div>
+                  )}
+                  {chatMessages.map((msg, i) => (
+                    <div key={i} className="bg-slate-800 rounded-lg p-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-semibold text-sm text-indigo-400">{msg.sender.name}</span>
+                        <span className="text-xs text-slate-500">{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
+                      <p className="text-slate-300 text-sm">{msg.message}</p>
+                    </div>
+                  ))}
+                </div>
+                <form onSubmit={handleSendMessage} className="relative mt-auto">
+                  <input
+                    type="text"
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    placeholder="Type a message..."
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-4 pr-12 py-3 text-sm focus:outline-none focus:border-indigo-500"
+                  />
+                  <button type="submit" className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-indigo-400 hover:text-indigo-300 transition-colors">
+                    <Send size={18} />
+                  </button>
+                </form>
+              </>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-3 bg-slate-800 rounded-xl border border-slate-700">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center font-semibold text-sm">
+                      {user?.name?.charAt(0) || "U"}
+                    </div>
+                    <span className="font-medium text-sm">{user?.name || user?.email} (You)</span>
+                  </div>
+                  {isHandRaised && <Hand size={16} className="text-yellow-400" />}
+                </div>
+                {peers.map((peerObj, i) => (
+                  <div key={i} className="flex items-center justify-between p-3 bg-slate-800 rounded-xl border border-slate-700">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 rounded-full bg-slate-600 flex items-center justify-center font-semibold text-sm">
+                        {peerObj.user?.name?.charAt(0) || "U"}
+                      </div>
+                      <span className="font-medium text-sm">{peerObj.user?.name}</span>
+                    </div>
+                    {peerObj.isHandRaised && <Hand size={16} className="text-yellow-400" />}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -17,6 +17,8 @@ import ProfilePage from "../modules/profile/ProfilePage";
 import RecruiterJobsPage from "../modules/recruiter-jobs/pages/RecruiterJobsPage";
 import CreateJobPostingPage from "../modules/recruiter-jobs/pages/CreateJobPostingPage";
 import JobBoardPage from "../modules/student-jobs/pages/JobBoardPage";
+import ClassroomsDashboard from "../modules/classrooms/pages/ClassroomsDashboard";
+import ClassroomRoom from "../modules/classrooms/pages/ClassroomRoom";
 import ProtectedRoute from "../shared/components/ProtectedRoute";
 
 function App() {
@@ -88,6 +90,24 @@ function App() {
           }
         />
         <Route path="/profile" element={<ProfilePage />} />
+        
+        {/* Live Classrooms */}
+        <Route
+          path="/classrooms"
+          element={
+            <ProtectedRoute>
+              <ClassroomsDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/classrooms/:roomId"
+          element={
+            <ProtectedRoute>
+              <ClassroomRoom />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
       <ChatWidget />
     </div>
