@@ -3,28 +3,10 @@ import path from "path";
 import { PDFParse } from "pdf-parse";
 import mammoth from "mammoth";
 
-const skillKeywords = [
-  "JavaScript",
-  "TypeScript",
-  "React",
-  "Node.js",
-  "MongoDB",
-  "Express",
-  "Python",
-  "Java",
-  "C++",
-  "MySQL",
-  "PostgreSQL",
-  "HTML",
-  "CSS",
-  "Bootstrap",
-  "Tailwind",
-  "Git",
-  "GitHub",
-  "Docker",
-  "AWS",
-  "REST API",
-];
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+const techKeywords = require("../../../ai-ml/data/techKeywords.json");
+const skillKeywords = Object.values(techKeywords).flat();
 
 const sectionHeaders = {
   education: ["education", "academics", "qualification"],
@@ -38,7 +20,7 @@ const phoneRegex = /(?:\+?\d{1,3}[\s-]?)?(?:\(?\d{3,5}\)?[\s-]?)?\d{6,10}\b/g;
 const linkedinRegex = /(https?:\/\/)?(www\.)?linkedin\.com\/[^\s)]+/gi;
 const githubRegex = /(https?:\/\/)?(www\.)?github\.com\/[^\s)]+/gi;
 const urlRegex = /(https?:\/\/[^\s)]+)/gi;
-const portfolioKeywords = ["portfolio", "vercel.app", "netlify.app", ".dev"];
+const portfolioKeywords = ["portfolio", "vercel.app", "netlify.app", ".dev", ".io", ".me", ".site", ".tech", "github.io"];
 
 const normalizeWhitespace = (text) => text.replace(/\r/g, "\n").replace(/\n{2,}/g, "\n").trim();
 
@@ -79,7 +61,6 @@ const extractSectionLines = (lines, headerKeys) => {
 
     if (isAnotherHeader) break;
     collected.push(current.replace(/^[-*]\s*/, ""));
-    if (collected.length >= 6) break;
   }
 
   return toUniqueList(collected);
@@ -137,8 +118,8 @@ export const parseResume = async (filePath) => {
 
   const emails = toUniqueList(text.match(emailRegex) || []);
   const phones = toUniqueList((text.match(phoneRegex) || []).map((phone) => phone.replace(/\s+/g, " ").trim()));
-  const linkedins = toUniqueList((text.match(linkedinRegex) || []).map(normalizeUrl));
-  const githubs = toUniqueList((text.match(githubRegex) || []).map(normalizeUrl));
+  const linkedins = toUniqueList((text.match(linkedinRegex) || []).map(cleanupUrl).map(normalizeUrl));
+  const githubs = toUniqueList((text.match(githubRegex) || []).map(cleanupUrl).map(normalizeUrl));
   const allUrls = toUniqueList((text.match(urlRegex) || []).map(cleanupUrl).map(normalizeUrl));
   const portfolios = allUrls.filter((url) => isLikelyPortfolioUrl(url));
 
