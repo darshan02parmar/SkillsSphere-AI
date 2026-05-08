@@ -7,6 +7,12 @@ import powerVerbs from "../data/powerVerbs.json" with { type: "json" };
  * 3. Detects passive voice
  */
 export default function readabilityEvaluator({ resumeText = "", weight = 0.1 }) {
+  // Clean bullet point prefixes from sentence start (fixes #230)
+  // Handles common bullet characters from PDF extraction: •, –, *, en-dash, em-dash
+  function cleanSentenceStart(sentence) {
+    return sentence.replace(/^[\s\u2022-*\u2013\u2014•]+/, '').trim();
+  }
+
   const sentences = resumeText
     .split(/[.!?\n]/)
     .map(s => s.trim())
@@ -26,7 +32,9 @@ export default function readabilityEvaluator({ resumeText = "", weight = 0.1 }) 
   let passiveVoiceCount = 0;
 
   sentences.forEach(sentence => {
-    const lowerSentence = sentence.toLowerCase();
+    // Clean bullet point prefixes before analysis (fixes #230)
+    const cleanedSentence = cleanSentenceStart(sentence);
+    const lowerSentence = cleanedSentence.toLowerCase();
     const words = lowerSentence.split(/\s+/);
     
     // Check for power verb at start or near start of sentence
@@ -89,4 +97,3 @@ export default function readabilityEvaluator({ resumeText = "", weight = 0.1 }) 
     }
   };
 }
-
