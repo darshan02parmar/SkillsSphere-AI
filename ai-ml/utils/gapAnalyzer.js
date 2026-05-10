@@ -31,8 +31,14 @@ export default function gapAnalyzer({
     const missingContact = Object.keys(contactResults)
       .filter(k => !contactResults[k]);
     if (missingContact.length > 0) {
-      categorizedSuggestions.critical.push(`Ensure your ${missingContact.join(" and ")} are visible at the top of the document.`);
+      const verb = missingContact.length === 1 ? "is" : "are";
+      const items = missingContact.length > 2 
+        ? missingContact.slice(0, -1).join(", ") + ", and " + missingContact[missingContact.length - 1]
+        : missingContact.join(" and ");
+      categorizedSuggestions.critical.push(`Ensure your ${items} ${verb} visible at the top of the document.`);
     }
+  } else if (atsOptimization?.score < 100) {
+    categorizedSuggestions.optimization.push("Your ATS structure is excellent. Ensure you use standard, non-serif fonts to guarantee 100% parseability by legacy ATS systems.");
   }
 
   // 2. 🎯 Strategic: Skills & Keywords (Only if JD provided)
@@ -63,12 +69,16 @@ export default function gapAnalyzer({
   // 3. 📈 Optimization: Impact & Readability
   if (impactMatch?.score < 50) {
     categorizedSuggestions.optimization.push("Transform task-based descriptions into result-oriented bullet points using the XYZ formula (Accomplished [X] as measured by [Y], by doing [Z]).");
+  } else {
+    categorizedSuggestions.optimization.push("Your impact metrics are strong. Consider adding specific financial figures or time-saved percentages to make your top achievements stand out even more.");
   }
 
   const readabilityDetails = readabilityMatch?.details || {};
   if ((readabilityDetails.passiveVoiceCount || 0) > 2) {
     const verbs = readabilityDetails.relevantVerbs || [];
     categorizedSuggestions.optimization.push(`Convert passive phrases into active ones using power verbs like ${verbs.slice(0, 2).join(" or ")}.`);
+  } else {
+    categorizedSuggestions.optimization.push("Readability is highly active. Maintain this by keeping bullet points strictly under two lines each for maximum scannability.");
   }
 
   // 4. 🏛️ Domain Specialization — always surface missing tech keywords
@@ -86,6 +96,8 @@ export default function gapAnalyzer({
   if (techStandard?.score < 60) {
     const techSuggestions = techStandard.details?.suggestions || techStandard.suggestions || [];
     techSuggestions.forEach(s => categorizedSuggestions.strategic.push(s));
+  } else {
+    categorizedSuggestions.strategic.push("You have a solid technical foundation. Consider linking open-source contributions or live deployments to provide proof-of-work for your top skills.");
   }
 
   // Flatten and prioritize
@@ -102,6 +114,8 @@ export default function gapAnalyzer({
       allSuggestions.push({ priority: "Polish", text: "Your resume is quite long (~3+ pages). Aim for a concise 1-2 page format for maximum engagement.", icon: "CheckCircle2" });
     } else if (wordCount > 0 && wordCount < 200) {
       allSuggestions.push({ priority: "Polish", text: "Your resume is very brief. Consider detailing your projects or certifications to show more depth.", icon: "CheckCircle2" });
+    } else {
+      allSuggestions.push({ priority: "Polish", text: "Your resume is in the top percentile! To maintain this competitive edge, ensure you update your metrics every 3-6 months.", icon: "CheckCircle2" });
     }
   }
 
