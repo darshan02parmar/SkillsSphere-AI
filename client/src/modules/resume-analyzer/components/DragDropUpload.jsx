@@ -100,7 +100,7 @@ const DragDropUpload = ({ onFileUpload }) => {
       className={`relative w-full p-12 border-2 border-dashed rounded-[1.5rem] transition-all duration-500 ease-out flex flex-col items-center justify-center space-y-6 focus:outline-none focus:ring-2 focus:ring-primary/40 outline-none ${
         isDragActive
           ? "border-primary bg-primary/5 scale-[1.02] shadow-[0_0_40px_rgba(79,70,229,0.15)]"
-          : "border-border bg-surface/30 hover:bg-surface/50 hover:border-primary/40"
+          : "border-gray-200 dark:border-border bg-gray-50 dark:bg-surface/30 hover:bg-gray-100 dark:hover:bg-surface/50 hover:border-primary/40"
       }`}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
@@ -117,7 +117,7 @@ const DragDropUpload = ({ onFileUpload }) => {
       </div>
 
       <div className="text-center space-y-2">
-        <p className="text-2xl font-heading font-bold text-text-main italic">
+        <p className="text-2xl font-heading font-bold text-gray-800 dark:text-text-main italic">
           Drag & Drop your resume here
         </p>
         <p className="text-text-muted">
@@ -138,11 +138,11 @@ const DragDropUpload = ({ onFileUpload }) => {
       </div>
 
       <div className="my-4 flex items-center justify-center space-x-4 w-full max-w-sm px-4">
-        <div className="h-px bg-border flex-1"></div>
+        <div className="h-px bg-gray-300 dark:bg-border flex-1"></div>
         <span className="text-[10px] text-text-muted uppercase font-black tracking-[0.3em]">
           OR
         </span>
-        <div className="h-px bg-border flex-1"></div>
+        <div className="h-px bg-gray-300 dark:bg-border flex-1"></div>
       </div>
 
       <div className="relative group">
