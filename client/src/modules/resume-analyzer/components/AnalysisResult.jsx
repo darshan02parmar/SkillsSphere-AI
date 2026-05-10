@@ -42,10 +42,10 @@ const AnalysisResult = ({ result, file, onReset }) => {
   // --- ATS Checklist Logic ---
   const atsData = result.atsOptimization || {};
   const checklist = [
-    { label: "Experience Section", status: atsData.sectionResults?.experience },
-    { label: "Skills Section", status: atsData.sectionResults?.skills },
-    { label: "Contact: Email", status: atsData.contactResults?.email },
-    { label: "Contact: LinkedIn", status: atsData.contactResults?.linkedin },
+    { label: "Experience Section", status: atsData.sectionResults?.experience, reason: "Missing clear experience headers or work history" },
+    { label: "Skills Section", status: atsData.sectionResults?.skills, reason: "No extractable skills section found" },
+    { label: "Contact: Email", status: atsData.contactResults?.email, reason: "Missing valid email address" },
+    { label: "Contact: LinkedIn", status: atsData.contactResults?.linkedin, reason: "Missing LinkedIn profile link" },
   ];
 
   // --- Action Words ---
@@ -132,12 +132,17 @@ const AnalysisResult = ({ result, file, onReset }) => {
           </div>
           <div className="grid grid-cols-1 gap-3">
             {checklist.map((item, i) => (
-              <div key={i} className="flex items-center justify-between p-3 bg-dark-bg/40 rounded-xl border border-border/50">
-                <span className="text-xs font-bold text-text-muted">{item.label}</span>
-                {item.status ? (
-                  <CheckCircle2 className="w-4 h-4 text-secondary" />
-                ) : (
-                  <AlertCircle className="w-4 h-4 text-red-400" />
+              <div key={i} className="flex flex-col p-3 bg-dark-bg/40 rounded-xl border border-border/50">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-text-muted">{item.label}</span>
+                  {item.status ? (
+                    <CheckCircle2 className="w-4 h-4 text-secondary" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 text-red-400" />
+                  )}
+                </div>
+                {!item.status && (
+                  <span className="text-[10px] text-red-400 mt-1.5">{item.reason}</span>
                 )}
               </div>
             ))}

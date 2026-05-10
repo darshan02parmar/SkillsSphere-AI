@@ -36,19 +36,27 @@ export default function gapAnalyzer({
   }
 
   // 2. 🎯 Strategic: Skills & Keywords (Only if JD provided)
-  if (isJDProvided && skillMatch?.score !== null && skillMatch?.score < 70) {
+  if (isJDProvided && skillMatch?.score !== null && skillMatch?.score < 100) {
     const missingSkills = skillMatch.details?.missingSkills || skillMatch.missingSkills || [];
     const prioritySkills = missingSkills.slice(0, 3);
     if (prioritySkills.length > 0) {
-      categorizedSuggestions.strategic.push(`Bridge the technical gap by highlighting experience with: ${prioritySkills.join(", ")}.`);
+      if (skillMatch.score >= 85) {
+        categorizedSuggestions.strategic.push(`Great skill match! You can push your ATS score closer to 100% by including: ${prioritySkills.join(", ")}.`);
+      } else {
+        categorizedSuggestions.strategic.push(`Bridge the technical gap by highlighting experience with: ${prioritySkills.join(", ")}.`);
+      }
     }
   }
 
-  if (isJDProvided && keywordMatch?.score !== null && keywordMatch?.score < 60) {
+  if (isJDProvided && keywordMatch?.score !== null && keywordMatch?.score < 100) {
     const missingKeywords = keywordMatch.details?.missingKeywords || keywordMatch.missingKeywords || [];
     const topKeywords = missingKeywords.slice(0, 3);
     if (topKeywords.length > 0) {
-      categorizedSuggestions.strategic.push(`Increase your visibility for this role by integrating industry terms: ${topKeywords.join(", ")}.`);
+      if (keywordMatch.score >= 90) {
+        categorizedSuggestions.strategic.push(`Great keyword match! You can push your ATS score closer to 100% by including: ${topKeywords.join(", ")}.`);
+      } else {
+        categorizedSuggestions.strategic.push(`Increase your visibility for this role by integrating industry terms: ${topKeywords.join(", ")}.`);
+      }
     }
   }
 
