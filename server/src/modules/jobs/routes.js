@@ -9,6 +9,7 @@ import {
   getRecruiterAnalytics,
   applyToJobPosting,
   getApplications,
+  getMyApplications,
 } from "./controller.js";
 
 const router = express.Router();
@@ -24,6 +25,9 @@ router.get("/recommendations", getRecommendations);
 router.get("/recruiter", authorizeRoles("recruiter"), getRecruiterJobs);
 router.get("/recruiter/analytics", authorizeRoles("recruiter"), getRecruiterAnalytics);
 router.post("/", authorizeRoles("recruiter"), createJobPosting);
+
+// Student application routes (must be before /:id to avoid route conflict)
+router.get("/my-applications", authorizeRoles("student"), getMyApplications);
 
 // Job-specific routes
 router

@@ -403,3 +403,16 @@ export const getApplicantAnalytics = async (recruiterId) => {
     applicantsPerJob: perJobAgg,
   };
 };
+
+/**
+ * Get all job IDs the current student has applied to
+ * @param {string} applicantId - ID of the student
+ * @returns {Promise<string[]>} - Array of job IDs
+ */
+export const getMyAppliedJobIds = async (applicantId) => {
+  const applications = await JobApplication.find({ applicant: applicantId })
+    .select("job")
+    .lean();
+
+  return applications.map((app) => app.job.toString());
+};
