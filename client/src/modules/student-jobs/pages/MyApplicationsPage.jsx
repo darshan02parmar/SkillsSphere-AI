@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import Navbar from "../../../shared/landing/Navbar";
 import LoadingState from "../../../shared/components/LoadingState";
+import ConfirmDialog from "../../../shared/components/ConfirmDialog";
 import {
   getMyApplicationsDetailed,
   withdrawApplication,
@@ -39,6 +40,7 @@ const MyApplicationsPage = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [withdrawingId, setWithdrawingId] = useState(null);
+  const [confirmJobId, setConfirmJobId] = useState(null);
 
   const fetchApplications = async (page = 1) => {
     setLoading(true);
@@ -68,19 +70,15 @@ const MyApplicationsPage = () => {
     }
   };
 
-  const handleWithdraw = async (jobId) => {
-    const confirmed = window.confirm(
-      "Are you sure you want to withdraw this application? This action cannot be undone."
-    );
-    if (!confirmed) return;
+  const handleWithdraw = async () => {
+    if (!confirmJobId) return;
 
-    setWithdrawingId(jobId);
+    setWithdrawingId(confirmJobId);
     try {
-      await withdrawApplication(jobId, token);
-      // Update the local state to reflect withdrawal
+      await withdrawApplication(confirmJobId, token);
       setApplications((prev) =>
         prev.map((app) =>
-          (app.job?._id || app.job) === jobId
+          (app.job?._id || app.job) === confirmJobId
             ? { ...app, status: "withdrawn" }
             : app
         )
@@ -89,6 +87,7 @@ const MyApplicationsPage = () => {
       alert(err.message || "Failed to withdraw application.");
     } finally {
       setWithdrawingId(null);
+      setConfirmJobId(null);
     }
   };
 
@@ -229,7 +228,7 @@ const MyApplicationsPage = () => {
                       {/* Withdraw button */}
                       {canWithdraw(app.status) && (
                         <button
-                          onClick={() => handleWithdraw(jobId)}
+                          onClick={() => setConfirmJobId(jobId)}
                           disabled={withdrawingId === jobId}
                           className="mt-1 flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg hover:bg-red-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
@@ -293,6 +292,19 @@ const MyApplicationsPage = () => {
           </div>
         )}
       </div>
+
+      {/* Confirm Withdraw Dialog */}
+      <ConfirmDialog
+        isOpen={!!confirmJobId}
+        title="Withdraw Application"
+        message="Are you sure you want to withdraw this application? This action cannot be undone."
+        confirmText="Withdraw"
+        cancelText="Keep Application"
+        variant="danger"
+        loading={!!withdrawingId}
+        onConfirm={handleWithdraw}
+        onCancel={() => setConfirmJobId(null)}
+      />
     </main>
   );
 };
