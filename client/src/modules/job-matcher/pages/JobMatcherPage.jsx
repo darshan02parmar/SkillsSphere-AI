@@ -92,7 +92,7 @@ export default function JobMatcherPage() {
 
         {/* Content */}
         {loading ? (
-          <div className="min-h-[400px] flex items-center justify-center bg-slate-900/30 rounded-2xl border border-white/5 backdrop-blur-sm">
+          <div className="min-h-[400px] flex items-center justify-center bg-gray-100 dark:bg-slate-900/30 rounded-2xl border border-gray-200 dark:border-white/5 backdrop-blur-sm">
             <LoadingState message="Analyzing your profile for the best matches..." />
           </div>
         ) : error ? (
@@ -147,7 +147,7 @@ export default function JobMatcherPage() {
               <div className="p-2 bg-blue-500/10 rounded-lg">
                 <Sparkles size={20} className="text-blue-400" />
               </div>
-              <h2 className="text-xl font-semibold text-slate-200">
+              <h2 className="text-xl font-semibold text-gray-800 dark:text-slate-200">
                 Recommended for You
                 <span className="ml-2 text-sm font-normal text-slate-500 bg-slate-800/50 px-2 py-0.5 rounded-full border border-white/5">
                   {jobs.length}
