@@ -164,8 +164,39 @@ export const getJobRecommendations = async (user) => {
     };
   }
 
-  // 2. Perform fresh matching evaluation using the new AI/ML Recommendation Engine
-  const openJobs = await JobPosting.find({ status: "open" });
+  // 2. Optimization: Pre-filter jobs to reduce load on the heavy AI engine
+  const query = { status: "open" };
+
+  // Combine and normalize candidate skills and keywords
+  const candidateTerms = [
+    ...(resume.skills || []),
+    ...(resume.keywords || []),
+  ].map((term) => term.trim().toLowerCase()).filter(Boolean);
+
+  const uniqueTerms = [...new Set(candidateTerms)];
+
+  if (uniqueTerms.length > 0) {
+    // Pre-filter: Only fetch jobs where at least one skill or title matches a candidate term.
+    // This drastically reduces the number of jobs sent to the AI evaluator.
+    const escapeRegex = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    
+    // We avoid \b for terms with special characters (like C++, Node.js) as it causes matching issues
+    const regexTerms = uniqueTerms.map((term) => {
+      const escaped = escapeRegex(term);
+      return new RegExp(`^${escaped}$|\\b${escaped}\\b`, "i");
+    });
+    
+    query.$or = [
+      { skills: { $in: regexTerms } },
+      { keywords: { $in: regexTerms } },
+      { title: { $in: regexTerms } }
+    ];
+  }
+
+  // Fetch only the relevant subset of jobs
+  const openJobs = await JobPosting.find(query);
+
+  // 3. Perform deep evaluation using the AI/ML Recommendation Engine on the filtered subset
   const rankedResults = await generateRecommendations(resume, openJobs);
 
   // 3. Persist the MatchResult for analytics (keeping sync with matching module)
