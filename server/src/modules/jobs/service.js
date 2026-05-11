@@ -139,6 +139,9 @@ export const deleteJob = async (id, recruiterId) => {
     throw new AppError("You do not have permission to delete this job", 403);
   }
 
+  // Delete all associated applications
+  await JobApplication.deleteMany({ job: id });
+  
   await JobPosting.findByIdAndDelete(id);
 };
 

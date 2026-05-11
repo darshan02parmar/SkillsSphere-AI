@@ -12,6 +12,8 @@ import {
   getMyApplications,
   getMyApplicationsDetailed,
   withdrawJobApplication,
+  updateJobPosting,
+  deleteJobPosting,
 } from "./controller.js";
 
 const router = express.Router();
@@ -35,7 +37,9 @@ router.get("/my-applications/details", authorizeRoles("student"), getMyApplicati
 // Job-specific routes
 router
   .route("/:id")
-  .get(authorizeRoles("recruiter"), getJobPostingById);
+  .get(authorizeRoles("recruiter"), getJobPostingById)
+  .put(authorizeRoles("recruiter"), updateJobPosting)
+  .delete(authorizeRoles("recruiter"), deleteJobPosting);
 
 // Application routes
 router.post("/:id/apply", authorizeRoles("student"), applyToJobPosting);

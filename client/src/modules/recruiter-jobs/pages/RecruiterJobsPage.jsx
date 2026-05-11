@@ -9,7 +9,7 @@ import LoadingState from "../../../shared/components/LoadingState";
 import ErrorState from "../../../shared/components/ErrorState";
 import EmptyState from "../../../shared/components/EmptyState";
 import { JobViewerCard } from "../../../shared/components";
-import { getRecruiterJobs } from "../services/jobPostingService";
+import { getRecruiterJobs, deleteJobPosting } from "../services/jobPostingService";
 
 const RecruiterJobsPage = () => {
   const navigate = useNavigate();
@@ -75,8 +75,19 @@ const RecruiterJobsPage = () => {
   });
 
   const handleEditJob = (job) => {
-    // navigate(`/recruiter/jobs/edit/${job.id}`);
-    console.log("Edit job", job);
+    navigate(`/recruiter/jobs/edit/${job._id || job.id}`);
+  };
+
+  const handleDeleteJob = async (job) => {
+    if (window.confirm(`Are you sure you want to delete "${job.title}"?`)) {
+      try {
+        await deleteJobPosting(job._id || job.id, token);
+        // Refresh the jobs list
+        setJobs(jobs.filter(j => (j._id || j.id) !== (job._id || job.id)));
+      } catch (err) {
+        alert(err.message || "Failed to delete job posting.");
+      }
+    }
   };
 
   const handleViewRecommendations = (job) => {
@@ -139,6 +150,7 @@ const RecruiterJobsPage = () => {
                 job={job}
                 viewerRole="recruiter"
                 onEdit={handleEditJob}
+                onDelete={handleDeleteJob}
                 onViewStats={handleViewRecommendations}
               />
             ))}

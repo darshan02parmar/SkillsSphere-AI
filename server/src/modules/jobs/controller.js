@@ -9,6 +9,8 @@ import {
   getMyAppliedJobIds as getMyAppliedJobIdsService,
   getMyApplicationsWithDetails as getMyAppsDetailedService,
   withdrawApplication as withdrawAppService,
+  updateJob as updateJobService,
+  deleteJob as deleteJobService,
 } from "./service.js";
 import AppError from "../../utils/AppError.js";
 import asyncHandler from "../../utils/asyncHandler.js";
@@ -121,6 +123,32 @@ export const getJobPostingById = asyncHandler(async (req, res) => {
   res.status(200).json({
     success: true,
     job,
+  });
+});
+
+/**
+ * @desc    Update a job posting
+ * @route   PUT /api/jobs/:id
+ * @access  Private (Recruiters only)
+ */
+export const updateJobPosting = asyncHandler(async (req, res) => {
+  const updatedJob = await updateJobService(req.params.id, req.body, req.user._id);
+  res.status(200).json({
+    success: true,
+    job: updatedJob,
+  });
+});
+
+/**
+ * @desc    Delete a job posting
+ * @route   DELETE /api/jobs/:id
+ * @access  Private (Recruiters only)
+ */
+export const deleteJobPosting = asyncHandler(async (req, res) => {
+  await deleteJobService(req.params.id, req.user._id);
+  res.status(200).json({
+    success: true,
+    message: "Job deleted successfully",
   });
 });
 

@@ -124,3 +124,57 @@ export const getRecruiterAnalytics = async (token) => {
     throw normalizedError;
   }
 };
+
+/**
+ * Update an existing job posting
+ * @param {string} id - Job posting ID
+ * @param {Object} jobData - Job posting payload
+ * @param {string} token - Auth bearer token
+ * @returns {Promise<{success: boolean, job: Object}>}
+ */
+export const updateJobPosting = async (id, jobData, token) => {
+  try {
+    const payload = {
+      ...jobData,
+      skills: Array.isArray(jobData.skills)
+        ? jobData.skills
+        : jobData.skills.split(",").map((s) => s.trim()).filter(Boolean),
+    };
+
+    const response = await apiRequest(`/api/jobs/${id}`, {
+      method: "PUT",
+      body: payload,
+      token,
+    });
+
+    return {
+      success: true,
+      job: response.job || response.data,
+    };
+  } catch (error) {
+    const normalizedError = handleServiceError(error);
+    throw normalizedError;
+  }
+};
+
+/**
+ * Delete a job posting
+ * @param {string} id - Job posting ID
+ * @param {string} token - Auth bearer token
+ * @returns {Promise<{success: boolean}>}
+ */
+export const deleteJobPosting = async (id, token) => {
+  try {
+    await apiRequest(`/api/jobs/${id}`, {
+      method: "DELETE",
+      token,
+    });
+
+    return {
+      success: true,
+    };
+  } catch (error) {
+    const normalizedError = handleServiceError(error);
+    throw normalizedError;
+  }
+};
