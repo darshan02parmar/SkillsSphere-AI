@@ -138,7 +138,10 @@ const DashboardPage = () => {
   const { user, token } = useSelector((state) => state.auth);
   const [history, setHistory] = useState([]);
   const [recruiterJobs, setRecruiterJobs] = useState([]);
+  const [skillTrends, setSkillTrends] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedVersions, setSelectedVersions] = useState([]);
+  const [showComparison, setShowComparison] = useState(false);
   
   const isStudent = user?.role === "student";
   const isRecruiter = user?.role === "recruiter";
@@ -190,6 +193,19 @@ const DashboardPage = () => {
     dispatch(logout());
     navigate("/login", { replace: true });
   };
+
+  const toggleVersionSelection = (id) => {
+    setSelectedVersions(prev => {
+      if (prev.includes(id)) return prev.filter(v => v !== id);
+      if (prev.length >= 2) return [prev[1], id];
+      return [...prev, id];
+    });
+  };
+
+  const compareData = useMemo(() => {
+    if (selectedVersions.length !== 2) return null;
+    return selectedVersions.map(id => history.find(item => item._id === id));
+  }, [selectedVersions, history]);
 
   const latestAnalysis = history.length > 0 ? history[0] : null;
 
@@ -556,6 +572,7 @@ const DashboardPage = () => {
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="bg-slate-800/30 text-[10px] uppercase tracking-widest text-gray-500 dark:text-slate-500">
+                        <th className="px-6 py-4 font-bold w-10">Select</th>
                         <th className="px-6 py-4 font-bold">Date</th>
                         <th className="px-6 py-4 font-bold">Score</th>
                         <th className="px-6 py-4 font-bold">Level</th>
@@ -565,7 +582,19 @@ const DashboardPage = () => {
                     <tbody className="divide-y divide-white/5">
                       {history.length > 0 ? (
                         history.map((item, idx) => (
-                          <tr key={idx} className="hover:bg-white/5 transition-colors group">
+                          <tr 
+                            key={idx} 
+                            className={`hover:bg-white/5 transition-colors group cursor-pointer ${selectedVersions.includes(item._id) ? 'bg-blue-500/10 border-l-2 border-blue-500' : ''}`}
+                            onClick={() => toggleVersionSelection(item._id)}
+                          >
+                            <td className="px-6 py-4 text-center">
+                              <input 
+                                type="checkbox" 
+                                checked={selectedVersions.includes(item._id)}
+                                onChange={() => {}} // Handled by tr onClick
+                                className="rounded border-gray-600 bg-transparent text-blue-600 focus:ring-blue-500"
+                              />
+                            </td>
                             <td className="px-6 py-4 text-sm whitespace-nowrap text-gray-700 dark:text-slate-300">
                               {new Date(item.createdAt).toLocaleDateString()}
                             </td>
@@ -576,7 +605,7 @@ const DashboardPage = () => {
                             </td>
                             <td className="px-6 py-4 text-sm whitespace-nowrap">
                               <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${
-                                item.classification.includes("Strong") || item.classification === "Advanced"
+                                item.classification?.includes("Strong") || item.classification === "Advanced"
                                   ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
                                   : item.classification === "Intermediate"
                                   ? "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20"
@@ -746,6 +775,104 @@ const DashboardPage = () => {
           </div>
         </section>
       </div>
+
+      {/* Floating Comparison Bar */}
+      {selectedVersions.length === 2 && !showComparison && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 bg-slate-900 border border-blue-500/50 p-4 rounded-2xl shadow-[0_0_30px_rgba(59,130,246,0.3)] flex items-center gap-6 animate-slide-up">
+          <div className="text-sm font-bold">
+            <span className="text-blue-400">2 Versions Selected</span>
+          </div>
+          <div className="h-8 w-px bg-white/10"></div>
+          <div className="flex gap-3">
+            <button 
+              onClick={() => setSelectedVersions([])}
+              className="px-4 py-2 text-xs font-bold uppercase text-slate-400 hover:text-white transition-colors"
+            >
+              Clear
+            </button>
+            <button 
+              onClick={() => setShowComparison(true)}
+              className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-black uppercase rounded-xl transition-all shadow-lg"
+            >
+              Compare Now
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Comparison Overlay */}
+      {showComparison && compareData && (
+        <div className="fixed inset-0 z-[60] bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 sm:p-8 animate-in fade-in duration-300">
+          <div className="bg-slate-900 border border-white/10 w-full max-w-5xl rounded-[2rem] overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+            <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/5">
+              <h2 className="text-2xl font-black italic">Version <span className="text-blue-400">Comparison</span></h2>
+              <button 
+                onClick={() => setShowComparison(false)}
+                className="p-2 hover:bg-white/10 rounded-full transition-colors"
+              >
+                <PlusCircle className="rotate-45 text-slate-400" size={24} />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative">
+                <div className="absolute left-1/2 top-0 bottom-0 w-px bg-white/10 -translate-x-1/2 hidden md:block"></div>
+                
+                {compareData.map((version, i) => (
+                  <div key={i} className="space-y-8">
+                    <div className="text-center">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Version {i + 1}</p>
+                      <h3 className="text-lg font-bold">{version ? new Date(version.createdAt).toLocaleString() : 'N/A'}</h3>
+                    </div>
+                    
+                    {/* Score Metric */}
+                    <div className="bg-white/5 border border-white/5 rounded-2xl p-6 text-center">
+                       <div className={`text-5xl font-black mb-2 ${version?.score >= 70 ? 'text-emerald-400' : version?.score >= 40 ? 'text-yellow-400' : 'text-red-400'}`}>
+                         {version?.score || 0}%
+                       </div>
+                       <p className="text-xs font-bold uppercase tracking-wider text-slate-400">{version?.classification}</p>
+                    </div>
+
+                    {/* Detail breakdown */}
+                    <div className="space-y-4">
+                      {['impactMatch', 'readabilityMatch', 'keywordMatch'].map(key => {
+                        const score = version?.breakdown?.[key] || 0;
+                        const label = key.replace(/([A-Z])/g, ' $1').trim();
+                        return (
+                          <div key={key} className="space-y-1.5">
+                            <div className="flex justify-between text-[10px] font-bold uppercase tracking-tight text-slate-400">
+                              <span className="capitalize">{label}</span>
+                              <span>{score}%</span>
+                            </div>
+                            <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+                              <div 
+                                className={`h-full transition-all duration-1000 ${score >= 70 ? 'bg-emerald-500' : score >= 40 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                                style={{ width: `${score}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Top Skills */}
+                    <div className="space-y-2">
+                       <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500">Key Skills Found</h4>
+                       <div className="flex flex-wrap gap-1.5">
+                          {version?.skills?.slice(0, 5).map((s, idx) => (
+                            <span key={idx} className="px-2 py-0.5 bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-bold rounded">
+                              {s}
+                            </span>
+                          ))}
+                       </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 };

@@ -128,7 +128,24 @@ export const analyzeResume = async (req, res) => {
       skills: safeData.skills || [],
       missingSkills: safePipeline.skillMatch?.missingSkills || [],
       suggestions: safePipeline.gapAnalysis?.suggestions || [],
+      breakdown: safePipeline.breakdown || {},
     });
+
+    // Clean up: Limit history to last 10 versions to prevent bloat
+    const historyCount = await AnalysisHistory.countDocuments({ user: req.user._id });
+    if (historyCount > 10) {
+      const oldestToKeep = await AnalysisHistory.find({ user: req.user._id })
+        .sort({ createdAt: -1 })
+        .skip(9)
+        .limit(1);
+      
+      if (oldestToKeep.length > 0) {
+        await AnalysisHistory.deleteMany({
+          user: req.user._id,
+          createdAt: { $lt: oldestToKeep[0].createdAt }
+        });
+      }
+    }
 
     return res.status(200).json({
       success: true,
