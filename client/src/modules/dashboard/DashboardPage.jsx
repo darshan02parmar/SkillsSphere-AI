@@ -31,12 +31,15 @@ import {
   XAxis, 
   YAxis, 
   CartesianGrid, 
-  Tooltip as RechartsTooltip 
+  Tooltip as RechartsTooltip,
+  BarChart,
+  Bar,
+  Cell
 } from "recharts";
 import { logout } from "../../features/auth/authSlice";
 import Button from "../../shared/components/Button";
 import Navbar from "../../shared/landing/Navbar";
-import { getAnalysisHistory } from "./services/dashboardService";
+import { getAnalysisHistory, getSkillTrends } from "./services/dashboardService";
 import { getRecruiterJobs } from "../recruiter-jobs/services/jobPostingService";
 
 const ROLE_LABELS = {
@@ -138,6 +141,7 @@ const DashboardPage = () => {
   const { user, token } = useSelector((state) => state.auth);
   const [history, setHistory] = useState([]);
   const [recruiterJobs, setRecruiterJobs] = useState([]);
+  const [skillTrends, setSkillTrends] = useState([]);
   const [loading, setLoading] = useState(true);
   
   const isStudent = user?.role === "student";
@@ -156,6 +160,14 @@ const DashboardPage = () => {
           const response = await getRecruiterJobs(token);
           if (response.success) {
             setRecruiterJobs(response.jobs || []);
+          }
+        }
+
+        // Fetch Skill Trends for both if needed, but mostly for students
+        if (isStudent) {
+          const trendsResponse = await getSkillTrends();
+          if (trendsResponse.success) {
+            setSkillTrends(trendsResponse.trends || []);
           }
         }
       } catch (error) {
@@ -372,6 +384,67 @@ const DashboardPage = () => {
                     <div className="h-full flex flex-col items-center justify-center text-gray-500 dark:text-slate-500">
                       <Activity size={40} className="opacity-20 mb-3" />
                       <p className="text-sm">Need at least 2 analyses to show trend</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Skill Trends - Student Only */}
+            {isStudent && (
+              <div className="rounded-2xl border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-slate-900/50 overflow-hidden backdrop-blur-md">
+                <div className="border-b border-white/5 bg-white/5 px-6 py-4 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="text-emerald-400" size={20} />
+                    <h2 className="text-lg font-bold">Trending Skills in Market</h2>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs text-slate-400 bg-white/5 px-2 py-1 rounded-md">
+                    <Activity size={12} />
+                    <span>Real-time Insights</span>
+                  </div>
+                </div>
+                <div className="p-6 h-[280px] min-h-[280px] w-full">
+                  {skillTrends.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={skillTrends} layout="vertical" margin={{ left: 20, right: 30 }}>
+                        <XAxis type="number" hide />
+                        <YAxis 
+                          dataKey="skill" 
+                          type="category" 
+                          stroke="#94a3b8" 
+                          fontSize={11} 
+                          tickLine={false} 
+                          axisLine={false}
+                          width={100}
+                        />
+                        <RechartsTooltip 
+                          cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                          content={({ active, payload }) => {
+                            if (active && payload && payload.length) {
+                              return (
+                                <div className="bg-slate-900 border border-white/10 p-2 rounded shadow-lg text-xs">
+                                  <span className="font-bold text-emerald-400">{payload[0].value} jobs</span> requesting this skill
+                                </div>
+                              );
+                            }
+                            return null;
+                          }}
+                        />
+                        <Bar 
+                          dataKey="count" 
+                          radius={[0, 4, 4, 0]} 
+                          barSize={12}
+                        >
+                          {skillTrends.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444'][index % 5]} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex flex-col items-center justify-center text-gray-500 dark:text-slate-500">
+                      <Briefcase size={40} className="opacity-20 mb-3" />
+                      <p className="text-sm">No job data available for trends</p>
                     </div>
                   )}
                 </div>

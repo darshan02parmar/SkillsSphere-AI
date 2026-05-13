@@ -134,6 +134,33 @@ export const updateJob = async (id, updateData, recruiterId) => {
 };
 
 /**
+ * Aggregates the most requested skills from all open job postings.
+ * @returns {Promise<Array>} Array of { skill: string, count: number }
+ */
+export const getSkillTrends = async () => {
+  const trends = await JobPosting.aggregate([
+    { $match: { status: "open" } },
+    { $unwind: "$skills" },
+    {
+      $group: {
+        _id: "$skills",
+        count: { $sum: 1 },
+      },
+    },
+    { $sort: { count: -1 } },
+    { $limit: 10 },
+    {
+      $project: {
+        _id: 0,
+        skill: "$_id",
+        count: 1,
+      },
+    },
+  ]);
+  return trends;
+};
+
+/**
  * Delete a job posting
  * @param {string} id - Job ID
  * @param {string} recruiterId - ID of the recruiter

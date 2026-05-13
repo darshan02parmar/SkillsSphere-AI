@@ -9,3 +9,13 @@ export const getAnalysisHistory = async () => {
     token,
   });
 };
+
+export const getSkillTrends = async () => {
+  const TOKEN_KEY = "skillssphere.auth.token";
+  const token = localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY);
+
+  return apiRequest("/api/jobs/trends/skills", {
+    method: "GET",
+    token,
+  });
+};

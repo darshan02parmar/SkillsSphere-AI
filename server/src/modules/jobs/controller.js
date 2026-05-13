@@ -11,6 +11,7 @@ import {
   withdrawApplication as withdrawAppService,
   updateJob as updateJobService,
   deleteJob as deleteJobService,
+  getSkillTrends as getSkillTrendsService,
 } from "./service.js";
 import AppError from "../../utils/AppError.js";
 import asyncHandler from "../../utils/asyncHandler.js";
@@ -307,5 +308,18 @@ export const withdrawJobApplication = asyncHandler(async (req, res) => {
     success: true,
     message: "Application withdrawn successfully",
     application,
+  });
+});
+
+/**
+ * @desc    Get top trending skills from open job postings
+ * @route   GET /api/jobs/trends/skills
+ * @access  Private (All authenticated users)
+ */
+export const getSkillTrends = asyncHandler(async (req, res) => {
+  const trends = await getSkillTrendsService();
+  res.status(200).json({
+    success: true,
+    trends,
   });
 });

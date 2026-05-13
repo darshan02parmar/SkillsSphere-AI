@@ -15,6 +15,7 @@ import {
   withdrawJobApplication,
   updateJobPosting,
   deleteJobPosting,
+  getSkillTrends,
 } from "./controller.js";
 
 const router = express.Router();
@@ -25,6 +26,7 @@ router.use(protect);
 // Public job discovery (for all authenticated users)
 router.get("/", getJobs);
 router.get("/recommendations", getRecommendations);
+router.get("/trends/skills", getSkillTrends);
 
 // Recruiter-only routes
 router.get("/recruiter", authorizeRoles("recruiter"), getRecruiterJobs);
