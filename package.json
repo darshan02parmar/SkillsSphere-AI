@@ -11,7 +11,6 @@
   },
   "dependencies": {
     "google-auth-library": "^10.6.2",
-    "openai": "^6.37.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {
