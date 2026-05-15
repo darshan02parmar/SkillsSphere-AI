@@ -5,14 +5,33 @@
  * - Speech-to-text (audio transcription via faster-whisper)
  * - Answer evaluation (semantic similarity + concept detection)
  *
- * Falls back to mock responses when the Python service is unavailable.
+ * Features:
+ * - Retry logic with exponential backoff (3 attempts)
+ * - Configurable timeouts for transcription and evaluation
+ * - Graceful fallback to mock scores when Python service is unavailable
+ * - Request timing logs for performance monitoring
  */
 
 const AI_SERVICE_URL =
   process.env.INTERVIEW_AI_URL || "http://localhost:8000";
+const EVAL_TIMEOUT = parseInt(process.env.INTERVIEW_AI_TIMEOUT || "10000", 10);
+const TRANSCRIBE_TIMEOUT = parseInt(
+  process.env.INTERVIEW_AI_TRANSCRIBE_TIMEOUT || "30000",
+  10
+);
+const MAX_RETRIES = 3;
+
+/**
+ * Sleep for a given number of milliseconds.
+ * Used for exponential backoff between retries.
+ */
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * Check if the Python AI service is available.
+ * Uses a 2-second timeout to avoid blocking the request pipeline.
+ *
+ * @returns {Promise<boolean>} True if the service is reachable and healthy.
  */
 const isServiceAvailable = async () => {
   try {
@@ -30,8 +49,76 @@ const isServiceAvailable = async () => {
 };
 
 /**
+ * Make an HTTP request to the Python service with retry logic.
+ * Retries up to MAX_RETRIES times with exponential backoff on failure.
+ *
+ * @param {string} endpoint - The API endpoint path (e.g. '/api/evaluate').
+ * @param {object} options - Fetch options (method, headers, body).
+ * @param {number} timeoutMs - Request timeout in milliseconds.
+ * @returns {Promise<Response>} The fetch response.
+ * @throws {Error} If all retry attempts fail.
+ */
+const fetchWithRetry = async (endpoint, options, timeoutMs) => {
+  let lastError;
+
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+      const startTime = Date.now();
+      const res = await fetch(`${AI_SERVICE_URL}${endpoint}`, {
+        ...options,
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+
+      const duration = Date.now() - startTime;
+      console.log(
+        `[aiInterviewService] ${endpoint} responded in ${duration}ms (attempt ${attempt})`
+      );
+
+      if (res.ok) return res;
+
+      // Non-retryable status codes
+      if (res.status === 400 || res.status === 422) {
+        const error = await res.json().catch(() => ({}));
+        throw new Error(
+          error.detail || `Request failed with status ${res.status}`
+        );
+      }
+
+      lastError = new Error(`Request failed with status ${res.status}`);
+    } catch (err) {
+      lastError = err;
+
+      if (err.name === "AbortError") {
+        lastError = new Error(
+          `Request to ${endpoint} timed out after ${timeoutMs}ms`
+        );
+      }
+
+      if (attempt < MAX_RETRIES) {
+        const backoff = Math.pow(2, attempt - 1) * 500; // 500ms, 1s, 2s
+        console.log(
+          `[aiInterviewService] Attempt ${attempt} failed for ${endpoint}, retrying in ${backoff}ms...`
+        );
+        await sleep(backoff);
+      }
+    }
+  }
+
+  throw lastError;
+};
+
+/**
  * Generate mock evaluation scores when the Python service is unavailable.
  * Uses basic keyword matching as a simple fallback.
+ *
+ * @param {string} transcript - The student's answer text.
+ * @param {string} expectedAnswer - The expected/ideal answer.
+ * @param {string[]} expectedConcepts - Concept IDs to check for.
+ * @returns {object} Mock evaluation result matching the Python API contract.
  */
 const mockEvaluate = (transcript, expectedAnswer, expectedConcepts) => {
   const transcriptLower = transcript.toLowerCase();
@@ -61,7 +148,9 @@ const mockEvaluate = (transcript, expectedAnswer, expectedConcepts) => {
   if (wordCount > 50 && wordCount < 200) communication = 85;
 
   // Count filler words
-  const fillers = ["um", "uh", "like", "you know", "basically", "actually", "so yeah"];
+  const fillers = [
+    "um", "uh", "like", "you know", "basically", "actually", "so yeah",
+  ];
   const fillerCount = fillers.reduce((count, filler) => {
     const regex = new RegExp(`\\b${filler}\\b`, "gi");
     return count + (transcriptLower.match(regex) || []).length;
@@ -74,40 +163,52 @@ const mockEvaluate = (transcript, expectedAnswer, expectedConcepts) => {
     concepts: { detected, missed },
     fillerWords: fillerCount,
     speakingSpeed: wordCount < 30 ? "slow" : wordCount > 150 ? "fast" : "normal",
+    _mock: true,
   };
 };
 
 /**
  * Send audio to the Python service for transcription.
- * Falls back with an error if the service is unavailable.
+ * Uses a longer timeout (30s default) since audio processing is slower.
+ *
+ * @param {Buffer} audioBuffer - Raw audio file buffer.
+ * @param {string} [filename='audio.webm'] - Original filename for format detection.
+ * @returns {Promise<object>} Object with 'transcript' field.
+ * @throws {Error} If the service is unavailable or transcription fails.
  */
-export const transcribeAudio = async (audioBuffer) => {
+export const transcribeAudio = async (audioBuffer, filename = "audio.webm") => {
   const available = await isServiceAvailable();
 
   if (!available) {
+    console.warn(
+      "[aiInterviewService] ⚠️ Python AI service is not reachable at",
+      AI_SERVICE_URL
+    );
     throw new Error(
       "AI transcription service is not available. Please submit text instead."
     );
   }
 
   const formData = new FormData();
-  formData.append("audio", new Blob([audioBuffer]), "audio.webm");
+  formData.append("audio", new Blob([audioBuffer]), filename);
 
-  const res = await fetch(`${AI_SERVICE_URL}/api/transcribe`, {
-    method: "POST",
-    body: formData,
-  });
-
-  if (!res.ok) {
-    throw new Error(`Transcription failed with status ${res.status}`);
-  }
+  const res = await fetchWithRetry(
+    "/api/transcribe",
+    { method: "POST", body: formData },
+    TRANSCRIBE_TIMEOUT
+  );
 
   return res.json();
 };
 
 /**
  * Send transcript to the Python service for evaluation.
- * Falls back to mock evaluation if the service is unavailable.
+ * Falls back to mock evaluation if the service is unavailable or errors out.
+ *
+ * @param {string} transcript - The student's answer text.
+ * @param {string} expectedAnswer - The expected/ideal answer.
+ * @param {string[]} expectedConcepts - Concept IDs to check for.
+ * @returns {Promise<object>} Evaluation result with technical, communication, relevance scores.
  */
 export const evaluateAnswer = async (
   transcript,
@@ -117,24 +218,48 @@ export const evaluateAnswer = async (
   const available = await isServiceAvailable();
 
   if (!available) {
-    console.log(
-      "[aiInterviewService] Python service unavailable, using mock evaluation"
+    console.warn(
+      "[aiInterviewService] ⚠️ Python service unavailable, falling back to mock evaluation"
     );
     return mockEvaluate(transcript, expectedAnswer, expectedConcepts);
   }
 
-  const res = await fetch(`${AI_SERVICE_URL}/api/evaluate`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ transcript, expectedAnswer, expectedConcepts }),
-  });
-
-  if (!res.ok) {
-    console.log(
-      `[aiInterviewService] Evaluation failed (${res.status}), using mock`
+  try {
+    const res = await fetchWithRetry(
+      "/api/evaluate",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transcript, expectedAnswer, expectedConcepts }),
+      },
+      EVAL_TIMEOUT
     );
+
+    return res.json();
+  } catch (err) {
+    console.warn(
+      `[aiInterviewService] ⚠️ Evaluation failed after ${MAX_RETRIES} retries: ${err.message}`
+    );
+    console.warn("[aiInterviewService] Falling back to mock evaluation");
     return mockEvaluate(transcript, expectedAnswer, expectedConcepts);
   }
+};
 
-  return res.json();
+/**
+ * Get the current connection status of the Python AI service.
+ * Useful for health check endpoints and debugging.
+ *
+ * @returns {Promise<object>} Status info including url, available, and mock mode.
+ */
+export const getServiceStatus = async () => {
+  const available = await isServiceAvailable();
+  return {
+    url: AI_SERVICE_URL,
+    available,
+    mode: available ? "ai" : "mock",
+    timeouts: {
+      evaluation: EVAL_TIMEOUT,
+      transcription: TRANSCRIBE_TIMEOUT,
+    },
+  };
 };
