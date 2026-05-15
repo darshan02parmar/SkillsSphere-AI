@@ -4,6 +4,12 @@ import User from "../../database/models/User.js";
 import { OAuth2Client } from "google-auth-library";
 import { sendOTP } from "../../utils/emailService.js";
 import AppError from "../../utils/AppError.js";
+import {
+  isLocalPasswordAccount,
+  LOCAL_EMAIL_REGISTERED_MESSAGE,
+} from "./googleAuthPolicy.js";
+
+export { LOCAL_EMAIL_REGISTERED_MESSAGE, isLocalPasswordAccount };
 
 const SALT_ROUNDS = 12;
 const OTP_EXPIRY_MINUTES = 5;
@@ -212,6 +218,26 @@ export const loginUser = async (email, password) => {
       role: user.role
     }
   };
+};
+
+export const findOrCreateGoogleUser = async ({ email, name, picture }) => {
+  const existing = await User.findOne({ email });
+
+  if (existing) {
+    if (isLocalPasswordAccount(existing)) {
+      throw new AppError(LOCAL_EMAIL_REGISTERED_MESSAGE, 409);
+    }
+    return existing;
+  }
+
+  return User.create({
+    name,
+    email,
+    profilePic: picture,
+    role: "student",
+    provider: "google",
+    isVerified: true,
+  });
 };
 
 // 🔐 Google Token Verification

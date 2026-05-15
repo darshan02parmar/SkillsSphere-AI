@@ -15,10 +15,11 @@ import {
   resetUserPassword,
   verifyGoogleToken,
   verifyUserEmail,
+  findOrCreateGoogleUser,
+  LOCAL_EMAIL_REGISTERED_MESSAGE,
 } from "./service.js";
 
 import jwt from "jsonwebtoken";
-import User from "../../database/models/User.js";
 import AppError from "../../utils/AppError.js";
 import asyncHandler from "../../utils/asyncHandler.js";
 
@@ -124,22 +125,8 @@ export const googleLogin = asyncHandler(async (req, res, next) => {
     return next(new AppError("Google token is required", 400));
   }
 
-  // ✅ Verify Google token
   const googleUser = await verifyGoogleToken(token);
-
-  // 🔍 Check if user exists
-  let user = await User.findOne({ email: googleUser.email });
-
-  // 🟢 Create new user if not exists
-  if (!user) {
-    user = await User.create({
-      name: googleUser.name,
-      email: googleUser.email,
-      profilePic: googleUser.picture,
-      role: "student",
-      provider: "google",
-    });
-  }
+  const user = await findOrCreateGoogleUser(googleUser);
 
   // 🔐 Generate JWT
   const jwtToken = jwt.sign(
@@ -226,17 +213,17 @@ export const googleOAuthCallback = asyncHandler(async (req, res, next) => {
   );
   const googleUser = await userRes.json();
 
-  // Find or create user in your DB
-  let user = await User.findOne({ email: googleUser.email });
-  if (!user) {
-    user = await User.create({
-      name: googleUser.name,
-      email: googleUser.email,
-      profilePic: googleUser.picture,
-      role: "student",
-      provider: "google",
-      isVerified: true,
-    });
+  let user;
+  try {
+    user = await findOrCreateGoogleUser(googleUser);
+  } catch (error) {
+    const message =
+      error instanceof AppError
+        ? error.message
+        : LOCAL_EMAIL_REGISTERED_MESSAGE;
+    return res.redirect(
+      `${callbackUrl}?error=${encodeURIComponent(message)}`,
+    );
   }
 
   // Generate your app's JWT
