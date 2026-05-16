@@ -105,14 +105,19 @@ SkillSphere AI aims to simplify the path from learning to hiring by giving users
 To simplify setup, you can now run the entire project using root-level scripts.
 
 ### Install all dependencies
+
 npm run install-all
 
 ### Run the project (client + server together)
+
 npm run dev
 
 This will start:
+
 - Frontend (client)
 - Backend (server)
+
+For **AI Mock Interview** real-time evaluation, start the Python microservice too (see “Interview AI Service” in the Manual Setup section).
 
 > ⚠️ Backend requires environment variables to run properly. Refer to the Environment Setup section below.
 
@@ -183,11 +188,7 @@ SkillSphere-AI/
 
 ---
 
-```md
-
-
-
-
+````md
 ## For Open-Source Contributors
 
 If you want to contribute, start by understanding:
@@ -227,6 +228,7 @@ cd client
 npm install
 npm run dev
 ```
+````
 
 ### Server
 
@@ -236,7 +238,40 @@ npm install
 npm run dev
 ```
 
+### Interview AI Service (Python microservice)
+
+This service powers speech-to-text transcription and answer evaluation for the Mock Interview module. The Node backend can run without it (it falls back to mock scores), but for real AI evaluation you should start it locally.
+
+**Requirements:** Python 3.10+
+
+```bash
+cd interview-ai-service
+
+# Create virtual environment
+python -m venv venv
+
+# Activate
+# Linux/Mac:
+# source venv/bin/activate
+# Windows:
+# venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Download spaCy English model
+python -m spacy download en_core_web_sm
+
+# Run the API (default port 8000)
+uvicorn main:app --reload --port 8000
+```
+
+Health check: `http://localhost:8000/health`
+
+Optional env var (defaults to `base`): `WHISPER_MODEL_SIZE=tiny|base|small|medium|large-v3`
+
 ## 🔐 Environment Variables Setup
+
 > ⚠️ The backend will not start without configuring the required environment variables.
 
 ### Server
@@ -256,9 +291,11 @@ cp .env.example .env
 - `GOOGLE_CLIENT_SECRET`
 
 # AI/ML Configuration (Required for semantic matching — free tier)
+
 HF_API_TOKEN=your_hugging_face_token
 
 ## 🔐 Google OAuth Setup
+
 - `EMAIL_SERVICE_MODE=console` (Use "smtp" for real emails)
 - `EMAIL_HOST=smtp.gmail.com`
 - `EMAIL_PORT=587`
@@ -267,6 +304,7 @@ HF_API_TOKEN=your_hugging_face_token
 - `EMAIL_FROM="SkillsSphere AI" <your-email@gmail.com>`
 
 # Evaluator toggles and weights (optional)
+
 EVALUATOR_SKILL_MATCH_ENABLED=true
 EVALUATOR_KEYWORD_MATCH_ENABLED=true
 EVALUATOR_EXPERIENCE_MATCH_ENABLED=true
@@ -275,6 +313,7 @@ EVALUATOR_KEYWORD_MATCH_WEIGHT=0.2
 EVALUATOR_EXPERIENCE_MATCH_WEIGHT=0.2
 
 # Interview AI Service (Python microservice for answer evaluation)
+
 INTERVIEW_AI_URL=http://localhost:8000
 INTERVIEW_AI_TIMEOUT=10000
 INTERVIEW_AI_TRANSCRIBE_TIMEOUT=30000
@@ -307,6 +346,7 @@ cp .env.example .env
 - `EMAIL_USER=your_smtp_username`
 - `EMAIL_PASS=your_smtp_password`
 - `HF_API_TOKEN=hf_...` (Free — required for semantic resume matching)
+
 1. Open Google Cloud Console.
 2. Create/select your project.
 3. Configure OAuth consent screen.
