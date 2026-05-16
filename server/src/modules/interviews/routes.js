@@ -41,17 +41,87 @@ const upload = multer({
 router.use(protect);
 
 // Topic discovery
+/**
+ * @openapi
+ * /api/interviews/topics:
+ *   get:
+ *     summary: Get available interview topics and difficulty levels
+ *     tags: [Interviews]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of topics
+ */
 router.get("/topics", getAvailableTopics);
 
 // AI service status (for debugging)
 router.get("/ai-status", getAIServiceStatus);
 
-// Interview session flow
+/**
+ * @openapi
+ * /api/interviews/start:
+ *   post:
+ *     summary: Start a new mock interview session
+ *     tags: [Interviews]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - topic
+ *             properties:
+ *               topic:
+ *                 type: string
+ *               difficulty:
+ *                 type: string
+ *                 enum: [Beginner, Intermediate, Advanced]
+ *     responses:
+ *       201:
+ *         description: Session started
+ */
 router.post("/start", startInterview);
+
+/**
+ * @openapi
+ * /api/interviews/history:
+ *   get:
+ *     summary: Get current student's interview history
+ *     tags: [Interviews]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of previous sessions
+ */
 router.get("/history", getInterviewHistory);
+
 router.get("/:id", getSession);
 router.post("/:id/answer", upload.single("audio"), submitAnswer);
 router.post("/:id/complete", completeInterview);
+
+/**
+ * @openapi
+ * /api/interviews/{id}/results:
+ *   get:
+ *     summary: Get final results and feedback for a completed session
+ *     tags: [Interviews]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Detailed feedback and scores
+ */
 router.get("/:id/results", getSessionResults);
 
 export default router;

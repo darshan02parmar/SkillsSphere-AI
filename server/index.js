@@ -21,6 +21,8 @@ import globalErrorHandler from "./src/middleware/errorMiddleware.js";
 import { logEvaluatorConfig } from "./src/config/evaluatorConfig.js";
 import { setIO } from "./src/utils/socketIO.js";
 import { initNotificationSockets } from "./src/modules/notifications/socket.js";
+import swaggerUi from 'swagger-ui-express';
+import swaggerSpec from './src/config/swaggerConfig.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -47,6 +49,9 @@ logEvaluatorConfig();
 app.get("/health", (req, res) => {
   res.json({ status: "OK" });
 });
+
+// Swagger Documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.post("/api/chat", (req, res) => {
   try {
