@@ -377,7 +377,17 @@ export const applyToJob = async (jobId, applicantId, options = {}) => {
 
   // Check for duplicate application
   const existing = await JobApplication.findOne({ job: jobId, applicant: applicantId });
+  
   if (existing) {
+    if (existing.status === "withdrawn") {
+      // Re-activate the withdrawn application
+      existing.status = "pending";
+      existing.resumeLink = options.resumeLink.trim();
+      existing.coverNote = options.coverNote?.trim() || "";
+      existing.statusHistory.push({ status: "pending", comment: "Application re-submitted after withdrawal" });
+      await existing.save();
+      return existing;
+    }
     throw new AppError("You have already applied to this job", 409);
   }
 
@@ -491,7 +501,10 @@ export const getApplicantAnalytics = async (recruiterId) => {
  * @returns {Promise<string[]>} - Array of job IDs
  */
 export const getMyAppliedJobIds = async (applicantId) => {
-  const applications = await JobApplication.find({ applicant: applicantId })
+  const applications = await JobApplication.find({ 
+    applicant: applicantId,
+    status: { $ne: "withdrawn" } 
+  })
     .select("job")
     .lean();
 
