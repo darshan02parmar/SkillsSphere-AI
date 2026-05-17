@@ -21,7 +21,18 @@ import {
 
 const router = express.Router();
 
-// 👤 Get Current User
+/**
+ * @openapi
+ * /api/auth/me:
+ *   get:
+ *     summary: Get current authenticated user profile
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Current user data
+ */
 router.get("/me", protect, getMe);
 
 // Initiate Google OAuth
@@ -61,12 +72,66 @@ router.get("/google", (req, res) => {
 // Callback from Google
 router.get("/google/callback", googleOAuthCallback);
 
-// 📝 Register & Auth (Rate Limited)
+/**
+ * @openapi
+ * /api/auth/register:
+ *   post:
+ *     summary: Register a new user
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - email
+ *               - password
+ *               - role
+ *             properties:
+ *               name:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *               role:
+ *                 type: string
+ *                 enum: [student, recruiter, admin]
+ *     responses:
+ *       201:
+ *         description: User registered
+ */
 router.post("/register", authRateLimiter, register);
 router.post("/verify-email", authRateLimiter, verifyEmail);
 router.post("/forgot-password", authRateLimiter, forgotPassword);
 router.post("/reset-password", authRateLimiter, resetPassword);
 router.post("/resend-otp", authRateLimiter, resendOTP);
+/**
+ * @openapi
+ * /api/auth/login:
+ *   post:
+ *     summary: Login user
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Login successful
+ */
 router.post("/login", authRateLimiter, login);
 
 // 🚪 Logout

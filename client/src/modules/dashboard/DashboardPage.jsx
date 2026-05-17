@@ -40,14 +40,14 @@ import {
 import { logout } from "../../features/auth/authSlice";
 import Button from "../../shared/components/Button";
 import Navbar from "../../shared/landing/Navbar";
-import {
-  getAnalysisHistory,
-  getSkillTrends,
-} from "./services/dashboardService";
+import { getAnalysisHistory, getSkillTrends } from "./services/dashboardService";
+import { getMyRoadmap } from "../roadmap/services/roadmapService";
 import { getRecruiterJobs } from "../recruiter-jobs/services/jobPostingService";
+import { Rocket } from "lucide-react";
 import SuggestionItem from "./components/SuggestionItem";
 import StatCard from "./components/StatCard";
 import PerformanceTrend from "./components/PerformanceTrend";
+import VersionComparisonModal from "./components/VersionComparisonModal";
 
 const ROLE_LABELS = {
   student: "Student",
@@ -62,6 +62,7 @@ const DashboardPage = () => {
   const [history, setHistory] = useState([]);
   const [recruiterJobs, setRecruiterJobs] = useState([]);
   const [skillTrends, setSkillTrends] = useState([]);
+  const [roadmap, setRoadmap] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedVersions, setSelectedVersions] = useState([]);
   const [showComparison, setShowComparison] = useState(false);
@@ -87,10 +88,12 @@ const DashboardPage = () => {
 
         // Fetch Skill Trends for both if needed, but mostly for students
         if (isStudent) {
-          const trendsResponse = await getSkillTrends();
-          if (trendsResponse.success) {
-            setSkillTrends(trendsResponse.trends || []);
-          }
+          const [trendsRes, roadmapRes] = await Promise.all([
+            getSkillTrends(),
+            getMyRoadmap()
+          ]);
+          if (trendsRes.success) setSkillTrends(trendsRes.trends || []);
+          if (roadmapRes.success) setRoadmap(roadmapRes.data || null);
         }
       } catch (error) {
         console.error("Failed to fetch dashboard data:", error);
@@ -144,6 +147,7 @@ const DashboardPage = () => {
   }, [selectedVersions, history]);
 
   const latestAnalysis = history.length > 0 ? history[0] : null;
+  const nextMilestone = roadmap?.roadmap?.find(t => t.status !== "completed");
 
   // Recruiter Stats Calculation
   const jobStats = useMemo(() => {
@@ -270,31 +274,60 @@ const DashboardPage = () => {
             </section>
           )}
 
-          {/* Analytics Section */}
-          <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-6">
-              {/* Score Trend Chart - Student Only */}
-              {isStudent && (
-                <PerformanceTrend
-                  data={chartData}
-                  historyLength={history.length}
-                  customTooltip={({ active, payload }) => {
-                    if (active && payload && payload.length) {
-                      return (
-                        <div className="bg-slate-900 border border-gray-200 dark:border-white/10 p-3 rounded-lg shadow-xl backdrop-blur-md">
-                          <p className="text-xs text-slate-400 mb-1">
-                            {payload[0].payload.fullDate}
-                          </p>
-                          <p className="text-sm font-bold text-blue-400">
-                            Score: {payload[0].value}%
-                          </p>
-                        </div>
-                      );
-                    }
-                    return null;
-                  }}
-                />
-              )}
+        {/* Analytics Section */}
+        <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-6">
+            {/* Next Roadmap Milestone - Student Only */}
+            {isStudent && nextMilestone && (
+              <Link to="/roadmap" className="block group">
+                <div className="mb-6 p-6 bg-gradient-to-br from-blue-600/20 to-indigo-900/40 border border-blue-500/20 rounded-[2rem] hover:border-blue-500/40 transition-all shadow-xl relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 group-hover:opacity-20 transition-all">
+                    <Rocket size={80} className="text-blue-400" />
+                  </div>
+                  <div className="relative z-10">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Target size={16} className="text-blue-400" />
+                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-400">
+                        Next Career Milestone
+                      </span>
+                    </div>
+                    <h3 className="text-xl font-bold text-white mb-2 group-hover:text-blue-400 transition-colors">
+                      Master {nextMilestone.topicName}
+                    </h3>
+                    <p className="text-sm text-slate-400 max-w-md mb-4 font-medium italic">
+                      Completing this milestone will significantly boost your
+                      profile strength for {roadmap.targetRole} roles.
+                    </p>
+                    <div className="flex items-center gap-2 text-xs font-bold text-white bg-white/5 w-fit px-4 py-2 rounded-xl group-hover:bg-blue-600 transition-all">
+                      Continue Learning
+                      <ChevronRight
+                        size={14}
+                        className="group-hover:translate-x-1 transition-transform"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            )}
+
+            {/* Score Trend Chart - Student Only */}
+            {isStudent && (
+              <PerformanceTrend 
+                data={chartData} 
+                historyLength={history.length} 
+                customTooltip={({ active, payload }) => {
+                  if (active && payload && payload.length) {
+                    return (
+                      <div className="bg-slate-900 border border-gray-200 dark:border-white/10 p-3 rounded-lg shadow-xl backdrop-blur-md">
+                        <p className="text-xs text-slate-400 mb-1">{payload[0].payload.fullDate}</p>
+                        <p className="text-sm font-bold text-blue-400">Score: {payload[0].value}%</p>
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
+              />
+            )}
 
               {/* Skill Trends - Student Only */}
               {isStudent && (
@@ -599,101 +632,87 @@ const DashboardPage = () => {
                 </div>
               )}
 
-              {/* History Table - Student Only */}
-              {isStudent && (
-                <div className="rounded-2xl border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-slate-900/50 overflow-hidden backdrop-blur-md">
-                  <div className="border-b border-white/5 bg-white/5 px-6 py-4 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Clock className="text-violet-400" size={20} />
-                      <h2 className="text-lg font-bold">Analysis History</h2>
-                    </div>
-                    <span className="text-xs font-medium text-gray-500 dark:text-slate-500">
-                      {history.length} records found
-                    </span>
+            {/* History Table - Student Only */}
+            {isStudent && (
+              <div className="rounded-2xl border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-slate-900/50 overflow-hidden backdrop-blur-md">
+                <div className="border-b border-white/5 bg-white/5 px-6 py-4 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Clock className="text-violet-400" size={20} />
+                    <h2 className="text-lg font-bold">Analysis History</h2>
                   </div>
-
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="bg-slate-800/30 text-[10px] uppercase tracking-widest text-gray-500 dark:text-slate-500">
-                          <th className="px-6 py-4 font-bold w-10">Select</th>
-                          <th className="px-6 py-4 font-bold">Date</th>
-                          <th className="px-6 py-4 font-bold">Score</th>
-                          <th className="px-6 py-4 font-bold">Level</th>
-                          <th className="px-6 py-4 font-bold">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-white/5">
-                        {history.length > 0 ? (
-                          history.map((item, idx) => (
-                            <tr
-                              key={idx}
-                              className={`hover:bg-white/5 transition-colors group cursor-pointer ${selectedVersions.includes(item._id) ? "bg-blue-500/10 border-l-2 border-blue-500" : ""}`}
-                              onClick={() => toggleVersionSelection(item._id)}
-                            >
-                              <td className="px-6 py-4 text-center">
-                                <input
-                                  type="checkbox"
-                                  checked={selectedVersions.includes(item._id)}
-                                  onChange={() => {}} // Handled by tr onClick
-                                  className="rounded border-gray-600 bg-transparent text-blue-600 focus:ring-blue-500"
-                                />
-                              </td>
-                              <td className="px-6 py-4 text-sm whitespace-nowrap text-gray-700 dark:text-slate-300">
-                                {new Date(item.createdAt).toLocaleDateString()}
-                              </td>
-                              <td className="px-6 py-4 text-sm font-bold whitespace-nowrap">
-                                <span
-                                  className={`${item.score >= 70 ? "text-emerald-400" : item.score >= 40 ? "text-yellow-400" : "text-red-400"}`}
-                                >
-                                  {item.score}%
-                                  {item.mode === "benchmark" && (
-                                    <span className="ml-2 text-[8px] opacity-60 text-blue-400 font-black uppercase">
-                                      BM
-                                    </span>
-                                  )}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4 text-sm whitespace-nowrap">
-                                <span
-                                  className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${
-                                    item.classification?.includes("Strong") ||
-                                    item.classification === "Advanced"
-                                      ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                                      : item.classification === "Intermediate"
-                                        ? "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20"
-                                        : "bg-red-500/10 text-red-400 border border-red-500/20"
-                                  }`}
-                                >
-                                  {item.classification}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4 text-sm whitespace-nowrap">
-                                <div className="flex items-center gap-1.5 text-emerald-500">
-                                  <CheckCircle size={14} />
-                                  <span className="text-[10px] font-bold uppercase tracking-wide">
-                                    Processed
-                                  </span>
-                                </div>
-                              </td>
-                            </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td
-                              colSpan="4"
-                              className="px-6 py-12 text-center text-gray-500 dark:text-slate-500 text-sm"
-                            >
-                              No history found
+                  <span className="text-xs font-medium text-gray-500 dark:text-slate-500">{history.length} records found</span>
+                </div>
+                
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-slate-800/30 text-[10px] uppercase tracking-widest text-gray-500 dark:text-slate-500">
+                        <th className="px-6 py-4 font-bold w-10">Select</th>
+                        <th className="px-6 py-4 font-bold">Date</th>
+                        <th className="px-6 py-4 font-bold">Score</th>
+                        <th className="px-6 py-4 font-bold">Level</th>
+                        <th className="px-6 py-4 font-bold">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {history.length > 0 ? (
+                        history.map((item, idx) => (
+                          <tr 
+                            key={idx} 
+                            className={`hover:bg-white/5 transition-colors group cursor-pointer ${selectedVersions.includes(item._id) ? 'bg-blue-500/10 border-l-2 border-blue-500' : ''}`}
+                            onClick={() => toggleVersionSelection(item._id)}
+                          >
+                            <td className="px-6 py-4 text-center">
+                              <input 
+                                type="checkbox" 
+                                checked={selectedVersions.includes(item._id)}
+                                onChange={() => {}} // Handled by tr onClick
+                                className="rounded border-gray-600 bg-transparent text-blue-600 focus:ring-blue-500"
+                              />
+                            </td>
+                            <td className="px-6 py-4 text-sm whitespace-nowrap text-gray-700 dark:text-slate-300">
+                              {new Date(item.createdAt).toLocaleDateString()}
+                            </td>
+                            <td className="px-6 py-4 text-sm font-bold whitespace-nowrap">
+                              <span className={`${item.score >= 70 ? "text-emerald-400" : item.score >= 40 ? "text-yellow-400" : "text-red-400"}`}>
+                                {item.score}%
+                                {item.mode === "benchmark" && (
+                                  <span className="ml-2 text-[8px] opacity-60 text-blue-400 font-black uppercase">BM</span>
+                                )}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-sm whitespace-nowrap">
+                              <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${
+                                item.classification?.includes("Strong") || item.classification === "Advanced"
+                                  ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                                  : item.classification === "Intermediate"
+                                  ? "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20"
+                                  : "bg-red-500/10 text-red-400 border border-red-500/20"
+                              }`}>
+                                {item.classification}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-sm whitespace-nowrap">
+                               <div className="flex items-center gap-1.5 text-emerald-500">
+                                 <CheckCircle size={14} />
+                                 <span className="text-[10px] font-bold uppercase tracking-wide">Processed</span>
+                               </div>
                             </td>
                           </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="4" className="px-6 py-12 text-center text-gray-500 dark:text-slate-500 text-sm">
+                            No history found
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
+          </div>
 
             <div className="space-y-6">
               {/* Smart Suggestions Card - Student Only */}
@@ -874,119 +893,44 @@ const DashboardPage = () => {
         </div>
       )}
 
-      {/* Floating Comparison Bar */}
-      {selectedVersions.length === 2 && !showComparison && (
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 bg-slate-900 border border-blue-500/50 p-4 rounded-2xl shadow-[0_0_30px_rgba(59,130,246,0.3)] flex items-center gap-6 animate-slide-up">
-          <div className="text-sm font-bold">
-            <span className="text-blue-400">2 Versions Selected</span>
+      {/* Comparison Modal */}
+      <VersionComparisonModal 
+        isOpen={showComparison}
+        onClose={() => setShowComparison(false)}
+        versions={compareData}
+      />
+
+      {/* Floating Selection Bar */}
+      {selectedVersions.length > 0 && !showComparison && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 bg-slate-900 border border-blue-500/30 p-4 rounded-2xl shadow-2xl flex items-center gap-6 animate-slide-up">
+          <div className="flex items-center gap-3">
+            <div className="flex -space-x-2">
+              {selectedVersions.map((_, i) => (
+                <div key={i} className="h-8 w-8 rounded-full bg-blue-600 border-2 border-slate-900 flex items-center justify-center text-[10px] font-black">
+                  V{i + 1}
+                </div>
+              ))}
+            </div>
+            <p className="text-xs font-bold text-white whitespace-nowrap">
+              {selectedVersions.length} {selectedVersions.length === 1 ? 'version' : 'versions'} selected
+            </p>
           </div>
           <div className="h-8 w-px bg-white/10"></div>
           <div className="flex gap-3">
-            <button
+            <button 
               onClick={() => setSelectedVersions([])}
               className="px-4 py-2 text-xs font-bold uppercase text-slate-400 hover:text-white transition-colors"
             >
               Clear
             </button>
-            <button
-              onClick={() => setShowComparison(true)}
-              className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-black uppercase rounded-xl transition-all shadow-lg"
-            >
-              Compare Now
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Comparison Overlay */}
-      {showComparison && compareData && (
-        <div className="fixed inset-0 z-[60] bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 sm:p-8 animate-in fade-in duration-300">
-          <div className="bg-slate-900 border border-white/10 w-full max-w-5xl rounded-[2rem] overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
-            <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/5">
-              <h2 className="text-2xl font-black italic">
-                Version <span className="text-blue-400">Comparison</span>
-              </h2>
+            {selectedVersions.length === 2 && (
               <button
-                onClick={() => setShowComparison(false)}
-                className="p-2 hover:bg-white/10 rounded-full transition-colors"
+                onClick={() => setShowComparison(true)}
+                className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-black uppercase rounded-xl transition-all shadow-lg"
               >
-                <PlusCircle className="rotate-45 text-slate-400" size={24} />
+                Compare Now
               </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative">
-                <div className="absolute left-1/2 top-0 bottom-0 w-px bg-white/10 -translate-x-1/2 hidden md:block"></div>
-
-                {compareData.map((version, i) => (
-                  <div key={i} className="space-y-8">
-                    <div className="text-center">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">
-                        Version {i + 1}
-                      </p>
-                      <h3 className="text-lg font-bold">
-                        {version
-                          ? new Date(version.createdAt).toLocaleString()
-                          : "N/A"}
-                      </h3>
-                    </div>
-
-                    {/* Score Metric */}
-                    <div className="bg-white/5 border border-white/5 rounded-2xl p-6 text-center">
-                      <div
-                        className={`text-5xl font-black mb-2 ${version?.score >= 70 ? "text-emerald-400" : version?.score >= 40 ? "text-yellow-400" : "text-red-400"}`}
-                      >
-                        {version?.score || 0}%
-                      </div>
-                      <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                        {version?.classification}
-                      </p>
-                    </div>
-
-                    {/* Detail breakdown */}
-                    <div className="space-y-4">
-                      {["impactMatch", "readabilityMatch", "keywordMatch"].map(
-                        (key) => {
-                          const score = version?.breakdown?.[key] || 0;
-                          const label = key.replace(/([A-Z])/g, " $1").trim();
-                          return (
-                            <div key={key} className="space-y-1.5">
-                              <div className="flex justify-between text-[10px] font-bold uppercase tracking-tight text-slate-400">
-                                <span className="capitalize">{label}</span>
-                                <span>{score}%</span>
-                              </div>
-                              <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
-                                <div
-                                  className={`h-full transition-all duration-1000 ${score >= 70 ? "bg-emerald-500" : score >= 40 ? "bg-yellow-500" : "bg-red-500"}`}
-                                  style={{ width: `${score}%` }}
-                                ></div>
-                              </div>
-                            </div>
-                          );
-                        },
-                      )}
-                    </div>
-
-                    {/* Top Skills */}
-                    <div className="space-y-2">
-                      <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                        Key Skills Found
-                      </h4>
-                      <div className="flex flex-wrap gap-1.5">
-                        {version?.skills?.slice(0, 5).map((s, idx) => (
-                          <span
-                            key={idx}
-                            className="px-2 py-0.5 bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-bold rounded"
-                          >
-                            {s}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            )}
           </div>
         </div>
       )}

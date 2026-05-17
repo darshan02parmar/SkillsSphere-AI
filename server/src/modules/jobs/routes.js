@@ -25,13 +25,75 @@ const router = express.Router();
 router.use(protect);
 
 // Public job discovery (for all authenticated users)
+/**
+ * @openapi
+ * /api/jobs:
+ *   get:
+ *     summary: Get all jobs (paginated/filtered)
+ *     tags: [Jobs]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of jobs
+ */
 router.get("/", getJobs);
+/**
+ * @openapi
+ * /api/jobs/recommendations:
+ *   get:
+ *     summary: Get AI job recommendations for current student
+ *     tags: [Jobs]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Recommended jobs
+ */
 router.get("/recommendations", getRecommendations);
 router.get("/trends/skills", getSkillTrends);
 
 // Recruiter-only routes
 router.get("/recruiter", authorizeRoles("recruiter"), getRecruiterJobs);
+/**
+ * @openapi
+ * /api/jobs/recruiter/analytics:
+ *   get:
+ *     summary: Get hiring analytics for recruiter
+ *     tags: [Jobs]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Analytics data
+ */
 router.get("/recruiter/analytics", authorizeRoles("recruiter"), getRecruiterAnalytics);
+/**
+ * @openapi
+ * /api/jobs:
+ *   post:
+ *     summary: Create a new job posting
+ *     tags: [Jobs]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - title
+ *               - company
+ *             properties:
+ *               title:
+ *                 type: string
+ *               company:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Job created
+ */
 router.post("/", authorizeRoles("recruiter"), jobCreationLimiter, createJobPosting);
 
 // Student application routes (must be before /:id to avoid route conflict)

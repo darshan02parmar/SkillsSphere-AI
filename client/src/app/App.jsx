@@ -144,6 +144,14 @@ function App() {
           }
         />
         <Route path="/profile" element={<ProfilePage />} />
+        <Route
+          path="/roadmap"
+          element={
+            <ProtectedRoute requiredRole="student">
+              <RoadmapPage />
+            </ProtectedRoute>
+          }
+        />
         
         {/* Live Classrooms */}
         <Route

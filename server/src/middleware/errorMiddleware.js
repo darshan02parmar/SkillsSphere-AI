@@ -28,6 +28,24 @@ const handleValidationErrorDB = (err) => {
   return error;
 };
 
+const handleAIError = (err) => {
+  let message = "AI service is currently unavailable. Please try again later.";
+  let statusCode = 503;
+
+  if (err.status === 401) {
+    message = "AI Authentication failed. Please check system configuration.";
+    statusCode = 500;
+  } else if (err.status === 429) {
+    message = "AI Rate limit exceeded. Please wait a moment.";
+    statusCode = 429;
+  } else if (err.code === 'ETIMEDOUT' || err.status === 408) {
+    message = "AI Analysis timed out. Please try a shorter resume or retry.";
+    statusCode = 408;
+  }
+
+  return new AppError(message, statusCode);
+};
+
 const globalErrorHandler = (err, req, res, next) => {
   let error = Object.assign(err);
   error.message = err.message;
@@ -35,6 +53,11 @@ const globalErrorHandler = (err, req, res, next) => {
   if (error.name === "CastError") error = handleCastErrorDB(error);
   if (error.code === 11000) error = handleDuplicateFieldsDB(error);
   if (error.name === "ValidationError") error = handleValidationErrorDB(error);
+  
+  // Handle AI/OpenAI Errors
+  if (error.isAxiosError || error.status >= 500 || error.type === 'invalid_request_error') {
+    error = handleAIError(error);
+  }
   
   // Preserve field-level errors from Mongoose if present
   if (err.errors && !error.errors) {
