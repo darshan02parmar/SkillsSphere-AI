@@ -112,7 +112,7 @@ export const analyzeResume = asyncHandler(async (req, res, next) => {
   const pipelineResult = await runPipeline({
     resumeData: parsedData,
     jobSkills,
-    jobDescription,
+    jobDescription: req.body.jobDescription,
   });
   console.timeEnd("PipelineExecution");
 
@@ -120,7 +120,7 @@ export const analyzeResume = asyncHandler(async (req, res, next) => {
   if (parsedData.skills?.length && jobSkills.length) {
     evaluators.push(skillMatchEvaluator);
   }
-  if (jobDescription && parsedData.resumeText) {
+  if (req.body.jobDescription && parsedData.resumeText) {
     evaluators.push(keywordMatchEvaluator);
     evaluators.push(semanticMatchEvaluator);
   }
@@ -145,7 +145,7 @@ export const analyzeResume = asyncHandler(async (req, res, next) => {
     ...safeData,
     ...safePipeline,
     jobSkills,
-    jobDescription,
+    jobDescription: req.body.jobDescription,
     mode: pipelineResult.mode || "match",
     file: {
       originalName: file.originalname,
@@ -195,7 +195,7 @@ export const analyzeResume = asyncHandler(async (req, res, next) => {
     verifiedLinks,
     file: savedResume.file,
   });
-};
+});
 
 export const getResumeResult = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
@@ -264,5 +264,4 @@ export const compareVersions = asyncHandler(async (req, res, next) => {
     }
   });
 });
-
 
