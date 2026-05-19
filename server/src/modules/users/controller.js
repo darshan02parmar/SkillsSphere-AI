@@ -44,6 +44,18 @@ export const uploadAvatar = asyncHandler(async (req, res, next) => {
     return next(new AppError("No image file provided", 400));
   }
 
+  // Delete the old avatar from disk if it was a local upload
+  const currentUser = await User.findById(req.user._id);
+  if (
+    currentUser?.profilePic &&
+    (currentUser.profilePic.includes("/uploads/avatars/") ||
+      currentUser.profilePic.includes("/api/files/avatars/"))
+  ) {
+    const oldFilename = path.basename(currentUser.profilePic.split("?")[0]);
+    const oldPath = path.join(process.cwd(), "src", "uploads", "avatars", oldFilename);
+    if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+  }
+
   const baseUrl = process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 5000}`;
   const profilePic = `${baseUrl}${buildAvatarFileUrl(req.file.filename)}`;
 
