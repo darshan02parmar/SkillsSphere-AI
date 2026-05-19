@@ -24,11 +24,13 @@ import { initNotificationSockets } from "./src/modules/notifications/socket.js";
 import { verifySocketToken } from "./src/middleware/authMiddleware.js";
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './src/config/swaggerConfig.js';
+import { validateEnv } from './src/config/validateEnv.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Create HTTP server for Socket.io
+validateEnv();
+
 const server = http.createServer(app);
 
 const ALLOWED_ORIGINS = [
@@ -44,11 +46,6 @@ const io = new Server(server, {
   },
 });
 
-/**
- * Socket.io authentication middleware.
- * Every WebSocket connection must present a valid JWT in the handshake.
- * The verified user is attached to socket.user for use in event handlers.
- */
 io.use(async (socket, next) => {
   try {
     const token = socket.handshake.auth?.token;
@@ -62,9 +59,7 @@ io.use(async (socket, next) => {
 setIO(io);
 
 app.use(cors());
-
 app.use(express.json());
-// Uploads are NOT served publicly — use /api/files/* with auth (see files/routes.js)
 
 await connectDB();
 logEvaluatorConfig();
@@ -73,22 +68,16 @@ app.get("/health", (req, res) => {
   res.json({ status: "OK" });
 });
 
-// Swagger Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.post("/api/chat", (req, res) => {
   try {
     const { message } = req.body;
-
-    // validation
     if (!message) {
       return res.status(400).json({ error: "Message required" });
     }
-
-    let reply = "I didn’t understand that.";
-
+    let reply = "I didn't understand that.";
     const msg = message.toLowerCase();
-
     if (msg.includes("hello") || msg.includes("hi")) {
       reply = "Hi! How can I help you?";
     } else if (msg.includes("help")) {
@@ -96,7 +85,6 @@ app.post("/api/chat", (req, res) => {
     } else if (msg.includes("resume")) {
       reply = "You can upload or manage your resumes here.";
     }
-
     res.json({ reply });
   } catch (error) {
     res.status(500).json({ error: "Server error" });
@@ -114,7 +102,6 @@ app.use("/api/users", userRoutes);
 app.use("/api/interviews", interviewRoutes);
 app.use("/api/files", fileRoutes);
 
-// Initialize Sockets
 initClassroomSockets(io);
 initNotificationSockets(io);
 
