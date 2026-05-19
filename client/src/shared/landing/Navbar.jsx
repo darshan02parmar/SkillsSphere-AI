@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Home, FileText, LayoutDashboard, MessageSquare, LogIn, UserPlus, X, Menu, LogOut, User, ChevronDown, Briefcase, Moon, Sun, Sparkles, Rocket, Video } from 'lucide-react';
 import Button from './Button';
 import { logout } from '../../features/auth/authSlice';
-import { getProtectedAssetUrl } from '../../utils/protectedAssetUrl';
+import { getSignedFileUrl } from '../../services/fileService';
 
 const getStoredTheme = () => {
   try {
@@ -24,7 +24,7 @@ const storeTheme = (theme) => {
 
 const Navbar = () => {
   const { isAuthenticated, user, token } = useSelector((state) => state.auth);
-  const avatarSrc = user?.profilePic ? getProtectedAssetUrl(user.profilePic, token) : null;
+  const [avatarSrc, setAvatarSrc] = useState(null);
   const dispatch = useDispatch();
   const navigate = useNavigate();
   
@@ -61,6 +61,21 @@ const Navbar = () => {
     root.classList.toggle('light', theme === 'light');
     storeTheme(theme);
   }, [theme]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (!user?.profilePic) {
+      setAvatarSrc(null);
+      return () => { isMounted = false; };
+    }
+
+    getSignedFileUrl(user.profilePic, token).then((url) => {
+      if (isMounted) setAvatarSrc(url);
+    });
+
+    return () => { isMounted = false; };
+  }, [user?.profilePic, token]);
 
   const toggleTheme = () => setTheme((current) => (current === 'dark' ? 'light' : 'dark'));
 
