@@ -27,6 +27,7 @@ export default function ClassroomRoom() {
   const peersRef = useRef([]); // To keep track of peer connections inside callbacks
   const socketRef = useRef();
   const localStreamRef = useRef();
+  const activeSocketIdsRef = useRef(new Set());
 
   useEffect(() => {
     // Basic auth check
@@ -53,6 +54,7 @@ export default function ClassroomRoom() {
         s.on("room-participants", (participants) => {
           const peersArr = [];
           participants.forEach(p => {
+            activeSocketIdsRef.current.add(p.socketId);
             const peer = createPeer(p.socketId, s.id, stream, user);
             peersRef.current.push({
               peerId: p.socketId,
@@ -76,11 +78,19 @@ export default function ClassroomRoom() {
         // Handle incoming user (they just joined, they will initiate the call to us)
         s.on("user-joined", (payload) => {
           console.log("User joined", payload);
+          activeSocketIdsRef.current.add(payload.socketId);
           // We don't initiate here. We wait for their offer.
         });
 
         // Receiving an offer
         s.on("webrtc-offer", (payload) => {
+          // Security check: Verify that the caller is a registered participant in this room
+          if (!activeSocketIdsRef.current.has(payload.callerSocketId)) {
+            console.error(`Blocked unauthorized WebRTC stream injection from socket: ${payload.callerSocketId}`);
+            alert("Security Warning: Blocked an unauthorized stream injection attempt from outside this classroom.");
+            return;
+          }
+
           const peer = addPeer(payload.offer, payload.callerSocketId, stream, s);
           
           const newPeerObj = {
@@ -98,10 +108,27 @@ export default function ClassroomRoom() {
 
         // Receiving an answer
         s.on("webrtc-answer", (payload) => {
+          if (!activeSocketIdsRef.current.has(payload.answererSocketId)) {
+            console.error(`Blocked unauthorized WebRTC signaling answer from socket: ${payload.answererSocketId}`);
+            return;
+          }
           const item = peersRef.current.find(p => p.peerId === payload.answererSocketId);
           if (item) {
             item.peer.signal(payload.answer);
           }
+        });
+
+        // Socket security & error handling
+        s.on("unauthorized", (payload) => {
+          console.error("Socket unauthorized action:", payload);
+          alert(`Security Warning: ${payload.message || "Unauthorized action detected."}`);
+          navigate("/classrooms");
+        });
+
+        s.on("error", (payload) => {
+          console.error("Socket error:", payload);
+          alert(`Socket Error: ${payload.message || "An error occurred."}`);
+          navigate("/classrooms");
         });
 
         // Other socket events
@@ -114,6 +141,7 @@ export default function ClassroomRoom() {
         });
 
         s.on("user-left", ({ socketId }) => {
+          activeSocketIdsRef.current.delete(socketId);
           const item = peersRef.current.find(p => p.peerId === socketId);
           if (item) {
             item.peer.destroy();
