@@ -3,10 +3,11 @@ export function initClassroomSockets(io) {
     console.log(`Socket connected: ${socket.id}`);
 
     // Join a specific room
-    socket.on("join-room", ({ roomId, user }) => {
+    socket.on("join-room", ({ roomId }) => {
       socket.join(roomId);
       
       // Store user info in socket instance to easily retrieve later
+      const user = socket.user; // Secure, derived from JWT
       socket.data = { roomId, user };
 
       console.log(`User ${user.name} (${socket.id}) joined room ${roomId}`);
@@ -55,10 +56,10 @@ export function initClassroomSockets(io) {
     });
 
     // WebRTC Signaling Events
-    socket.on("webrtc-offer", ({ targetSocketId, offer, callerUser }) => {
+    socket.on("webrtc-offer", ({ targetSocketId, offer }) => {
       socket.to(targetSocketId).emit("webrtc-offer", {
         callerSocketId: socket.id,
-        callerUser,
+        callerUser: socket.data ? socket.data.user : socket.user,
         offer
       });
     });
