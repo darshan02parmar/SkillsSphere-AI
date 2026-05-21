@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
-import { CheckCircle2, Circle, Clock, Rocket, Target, Award, ArrowRight } from "lucide-react";
+import { CheckCircle2, Circle, Clock, Rocket, Target, Award, ArrowRight, Star } from "lucide-react";
 import Navbar from "../../../shared/landing/Navbar";
 import { getMyRoadmap, updateTopicStatus } from "../services/roadmapService";
 import { LoadingState, useToast } from "../../../shared/components";
@@ -108,25 +108,30 @@ const RoadmapPage = () => {
 
           {roadmap.roadmap.map((topic, index) => {
             const isCompleted = topic.status === "completed";
+            const isContribution = topic.type === "contribution";
             const isLeft = index % 2 === 0;
+
+            const primaryColorClass = isContribution ? "amber-500" : "primary";
+            const borderColorClass = isContribution ? "border-amber-500/50" : "border-primary";
+            const shadowColorClass = isContribution ? "rgba(245,158,11,0.5)" : "rgba(99,102,241,0.5)";
 
             return (
               <div key={topic._id} className={`relative flex items-center gap-8 ${isLeft ? "md:flex-row" : "md:flex-row-reverse"} animate-slide-up`} style={{ animationDelay: `${index * 100}ms` }}>
                 
                 {/* Visual Dot on the line */}
-                 <div className={`absolute left-[19px] md:left-1/2 md:-ml-3 w-6 h-6 rounded-full border-4 ${isCompleted ? 'bg-primary border-primary shadow-[0_0_15px_rgba(99,102,241,0.5)]' : 'bg-[var(--background)] border-[var(--border)]'} z-20 transition-all duration-500`}>
-                   {isCompleted && <CheckCircle2 className="w-full h-full text-white p-0.5" />}
+                 <div className={`absolute left-[19px] md:left-1/2 md:-ml-3 w-6 h-6 rounded-full border-4 ${isCompleted ? (isContribution ? `bg-amber-500 ${borderColorClass} shadow-[0_0_15px_${shadowColorClass}]` : `bg-primary ${borderColorClass} shadow-[0_0_15px_${shadowColorClass}]`) : 'bg-[var(--background)] border-[var(--border)]'} z-20 transition-all duration-500`}>
+                   {isCompleted && (isContribution ? <Star className="w-full h-full text-white p-0.5 fill-current" /> : <CheckCircle2 className="w-full h-full text-white p-0.5" />)}
                 </div>
 
                 {/* Content Card */}
                 <div className={`w-full md:w-1/2 ${isLeft ? "md:pr-16" : "md:pl-16"}`}>
-                  <div className={`group p-6 bg-[var(--surface)] border ${isCompleted ? 'border-primary/30' : 'border-[var(--border)]'} rounded-[2rem] hover:border-primary/50 transition-all hover:bg-[var(--surface-hover)] shadow-lg relative overflow-hidden`}>
+                  <div className={`group p-6 bg-[var(--surface)] border ${isCompleted ? (isContribution ? 'border-amber-500/40' : 'border-primary/30') : 'border-[var(--border)]'} rounded-[2rem] hover:${isContribution ? 'border-amber-500/60' : 'border-primary/50'} transition-all hover:bg-[var(--surface-hover)] shadow-lg relative overflow-hidden`}>
                     
                     {/* Background Glow */}
-                    {isCompleted && <div className="absolute -top-12 -right-12 w-24 h-24 bg-primary/10 rounded-full blur-[40px] pointer-events-none"></div>}
+                    {isCompleted && <div className={`absolute -top-12 -right-12 w-24 h-24 rounded-full blur-[40px] pointer-events-none ${isContribution ? 'bg-amber-500/20' : 'bg-primary/10'}`}></div>}
 
                     <div className="flex items-start justify-between mb-4">
-                       <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">{index + 1}. Milestone</span>
+                       <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">{index + 1}. {isContribution ? 'Contribution' : 'Milestone'}</span>
                        <div className="flex items-center gap-1.5">
                          {topic.isVerified && (
                            <div className="px-2 py-1 bg-indigo-500/10 text-indigo-400 rounded-lg text-[8px] font-black uppercase tracking-tighter border border-indigo-500/20 flex items-center gap-1 animate-pulse">
@@ -145,7 +150,7 @@ const RoadmapPage = () => {
                        </div>
                     </div>
 
-                    <h3 className="text-xl font-bold text-[var(--text-main)] mb-4 group-hover:text-primary transition-colors">
+                    <h3 className={`text-xl font-bold text-[var(--text-main)] mb-4 transition-colors ${isContribution ? 'group-hover:text-amber-500' : 'group-hover:text-primary'}`}>
                       {topic.topicName}
                     </h3>
 
@@ -176,7 +181,7 @@ const RoadmapPage = () => {
                        <button 
                          onClick={() => handleStatusUpdate(topic._id, topic.status)}
                          disabled={updatingId === topic._id || topic.isVerified}
-                         className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${topic.isVerified ? 'bg-indigo-500/10 text-indigo-400 cursor-not-allowed' : isCompleted ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20' : 'bg-primary/10 text-primary hover:bg-primary hover:text-white'}`}
+                         className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${topic.isVerified ? 'bg-indigo-500/10 text-indigo-400 cursor-not-allowed' : isCompleted ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20' : (isContribution ? 'bg-amber-500/10 text-amber-500 hover:bg-amber-500 hover:text-white' : 'bg-primary/10 text-primary hover:bg-primary hover:text-white')}`}
                        >
                          {updatingId === topic._id ? (
                            <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
@@ -185,7 +190,7 @@ const RoadmapPage = () => {
                          ) : isCompleted ? (
                            <> <CheckCircle2 className="w-4 h-4" /> Mastery Achieved </>
                          ) : (
-                           <> <Award className="w-4 h-4" /> Mark as Completed </>
+                           <> {isContribution ? <Star className="w-4 h-4" /> : <Award className="w-4 h-4" />} Mark as Completed </>
                          )}
                        </button>
 
