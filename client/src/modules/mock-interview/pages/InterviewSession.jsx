@@ -45,6 +45,7 @@ const InterviewSession = () => {
   const [socket, setSocket] = useState(null);
   const [participants, setParticipants] = useState([]);
   const [liveTyping, setLiveTyping] = useState("");
+  const [socketStatus, setSocketStatus] = useState("connecting");
 
   const isObserver = user && session && user._id !== session.userId;
 
@@ -100,7 +101,16 @@ const InterviewSession = () => {
     const newSocket = io(socketUrl, { auth: { token } });
 
     newSocket.on("connect", () => {
+      setSocketStatus("connected");
       newSocket.emit("join-interview", { sessionId });
+    });
+
+    newSocket.on("disconnect", () => {
+      setSocketStatus("disconnected");
+    });
+
+    newSocket.on("reconnect_attempt", () => {
+      setSocketStatus("reconnecting");
     });
 
     newSocket.on("interview-participants", (pts) => {
@@ -247,6 +257,15 @@ const InterviewSession = () => {
         <div className="session-timer">
           <Clock size={16} />
           {formatTime(elapsedTime)}
+        </div>
+        <div className="socket-status">
+          <span className={`status-dot status-${socketStatus}`} />
+          <span className="status-text">
+            {socketStatus === "connected" && "Connected"}
+            {socketStatus === "disconnected" && "Disconnected"}
+            {socketStatus === "reconnecting" && "Reconnecting"}
+            {socketStatus === "connecting" && "Connecting..."}
+          </span>
         </div>
       </div>
 
