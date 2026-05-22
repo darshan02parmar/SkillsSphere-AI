@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import JobPosting from "../../database/models/JobPosting.js";
 import JobApplication from "../../database/models/JobApplication.js";
+import Notification from "../../database/models/Notification.js";
 import * as resumeService from "../resumes/service.js";
 import matchingService from "../matching/service.js";
 import { generateRecommendations } from "../../../../ai-ml/pipeline/recommendationEngine.js";
@@ -392,14 +393,44 @@ export const applyToJob = async (jobId, applicantId, options = {}) => {
     throw new AppError("You have already applied to this job", 409);
   }
 
-  const application = await JobApplication.create({
-    job: jobId,
-    applicant: applicantId,
-    resume: options.resumeId || null,
-    resumeLink: options.resumeLink.trim(),
-    coverNote: options.coverNote?.trim() || "",
-    statusHistory: [{ status: "pending", comment: "Application submitted" }],
-  });
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  let application;
+  try {
+    const appDocs = await JobApplication.create([{
+      job: jobId,
+      applicant: applicantId,
+      resume: options.resumeId || null,
+      resumeLink: options.resumeLink.trim(),
+      coverNote: options.coverNote?.trim() || "",
+      statusHistory: [{ status: "pending", comment: "Application submitted" }],
+    }], { session });
+    
+    application = appDocs[0];
+
+    const notifDocs = await Notification.create([{
+      recipient: job.recruiter,
+      type: "new_application",
+      title: "New Job Application",
+      message: `A new candidate has applied for ${job.title}.`,
+      relatedData: { jobId: job._id, applicationId: application._id, studentId: applicantId }
+    }], { session });
+
+    await session.commitTransaction();
+
+    const io = getIO();
+    if (io) {
+      io.to(`user_${job.recruiter}`).emit("new-notification", notifDocs[0]);
+    }
+
+  } catch (error) {
+    await session.abortTransaction();
+    console.error("Transaction aborted in applyToJob:", error);
+    throw error;
+  } finally {
+    session.endSession();
+  }
 
   return application;
 };
