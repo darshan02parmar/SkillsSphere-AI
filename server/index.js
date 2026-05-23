@@ -17,15 +17,16 @@ import classroomRoutes from "./src/modules/classrooms/routes.js";
 import userRoutes from "./src/modules/users/routes.js";
 import interviewRoutes from "./src/modules/interviews/routes.js";
 import fileRoutes from "./src/modules/files/routes.js";
+import notificationRoutes from "./src/modules/notifications/routes.js";
 import { initClassroomSockets } from "./src/modules/classrooms/socket.js";
 import globalErrorHandler from "./src/middleware/errorMiddleware.js";
 import { logEvaluatorConfig } from "./src/config/evaluatorConfig.js";
 import { setIO } from "./src/utils/socketIO.js";
 import { initNotificationSockets } from "./src/modules/notifications/socket.js";
 import { verifySocketToken } from "./src/middleware/authMiddleware.js";
-import swaggerUi from 'swagger-ui-express';
-import swaggerSpec from './src/config/swaggerConfig.js';
-import { validateEnv } from './src/config/validateEnv.js';
+import swaggerUi from "swagger-ui-express";
+import swaggerSpec from "./src/config/swaggerConfig.js";
+import { validateEnv } from "./src/config/validateEnv.js";
 import analyticsRoutes from "./src/modules/analytics/routes.js";
 const app = express();
 app.set("trust proxy", 1);
@@ -75,7 +76,7 @@ app.get("/health", (req, res) => {
   res.json({ status: "OK" });
 });
 
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.post("/api/chat", (req, res) => {
   try {
@@ -109,6 +110,7 @@ app.use("/api/classrooms", classroomRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/interviews", interviewRoutes);
 app.use("/api/files", fileRoutes);
+app.use("/api/notifications", notificationRoutes);
 app.use("/api/analytics", analyticsRoutes);
 
 initClassroomSockets(io);
