@@ -957,7 +957,7 @@ export const updateApplicationStatus = async (applicationId, recruiterId, { stat
 
   // Create persistent notification for the student
   const notification = await Notification.create({
-    recipient: application.applicant,
+    userId: application.applicant,
     type: "application_status",
     title: "Application Status Updated",
     message: `Your application for ${application.job.title} has been marked as ${status}.`,

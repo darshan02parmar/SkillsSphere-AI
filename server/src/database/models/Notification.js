@@ -5,17 +5,8 @@ const notificationSchema = new mongoose.Schema(
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-<<<<<<< Updated upstream
       required: [true, "User ID is required"],
       index: true,
-=======
-      required: true,
-    },
-    type: {
-      type: String,
-      enum: ["skill_gap_alert", "general", "system", "new_application", "application_status"],
-      default: "general",
->>>>>>> Stashed changes
     },
 
     title: {
@@ -45,6 +36,7 @@ const notificationSchema = new mongoose.Schema(
         "application",
         "new_application",
         "skill_gap_alert",
+        "application_status",
       ],
       default: "info",
       required: [true, "Notification type is required"],
