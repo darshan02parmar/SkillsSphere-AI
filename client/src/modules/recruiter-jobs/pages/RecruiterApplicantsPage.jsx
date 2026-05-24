@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import Navbar from '../../../shared/landing/Navbar';
 import { Button, LoadingState, ErrorState, EmptyState, StatusUpdateModal, StatusTimeline } from '../../../shared/components';
-import { getJobApplications, updateApplicationStatus, getJobPostingById } from '../services/jobPostingService';
+import { getJobApplications, updateApplicationStatus, getJobPostingById, exportJobApplicationsCSV } from '../services/jobPostingService';
 
 const statusStyles = {
   pending: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
@@ -143,6 +143,22 @@ const RecruiterApplicantsPage = () => {
     fetchData();
   };
 
+  const handleExportCSV = async () => {
+    try {
+      const blob = await exportJobApplicationsCSV(jobId, token, statusFilter, sortBy);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `job-${job?.title || jobId}-applicants.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      alert(err.message || "Failed to export matches.");
+    }
+  };
+
   const openUpdateModal = (e, app) => {
     e.stopPropagation();
     setSelectedApp(app);
@@ -231,6 +247,17 @@ const RecruiterApplicantsPage = () => {
                 Job ID: {jobId.slice(-6)}
               </span>
             </div>
+          </div>
+          
+          <div className="flex items-center gap-3 shrink-0">
+            <Button
+              variant="outline"
+              onClick={handleExportCSV}
+              disabled={applicants.length === 0}
+              className="border-slate-700 text-slate-200 hover:text-white hover:bg-slate-800"
+            >
+              Export Matches to CSV
+            </Button>
           </div>
         </div>
 

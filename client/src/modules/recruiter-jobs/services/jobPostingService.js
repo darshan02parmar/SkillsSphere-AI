@@ -255,3 +255,33 @@ export const updateApplicationStatus = async (applicationId, status, comment, to
     throw normalizedError;
   }
 };
+
+/**
+ * Export applications for a specific job posting as a CSV Blob
+ * @param {string} jobId - Job posting ID
+ * @param {string} token - Auth bearer token
+ * @param {string} status - Optional status filter
+ * @param {string} sortBy - Optional sorting option
+ * @returns {Promise<Blob>}
+ */
+export const exportJobApplicationsCSV = async (jobId, token, status = "", sortBy = "matchScore") => {
+  try {
+    let url = `/api/jobs/${jobId}/applications/export?sortBy=${encodeURIComponent(sortBy)}`;
+    if (status) {
+      url += `&status=${encodeURIComponent(status)}`;
+    }
+    const response = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+    if (!response.ok) {
+      throw new Error("Failed to export candidates");
+    }
+    const blob = await response.blob();
+    return blob;
+  } catch (error) {
+    const normalizedError = handleServiceError(error);
+    throw normalizedError;
+  }
+};

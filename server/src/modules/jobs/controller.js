@@ -267,6 +267,64 @@ export const getApplications = asyncHandler(async (req, res) => {
 });
 
 /**
+ * @desc    Export all applications for a job posting as CSV
+ * @route   GET /api/jobs/:id/applications/export
+ * @access  Private (Recruiters only)
+ */
+export const exportApplicationsToCSV = asyncHandler(async (req, res) => {
+  const { status, sortBy } = req.query || {};
+  const applications = await getJobAppsService(req.params.id, req.user._id, status, sortBy);
+
+  // Construct CSV headers
+  const headers = [
+    "Candidate Name",
+    "Candidate Email",
+    "Match Score",
+    "Match Category",
+    "Status",
+    "Apply Date",
+    "Resume Link",
+    "Cover Note"
+  ];
+
+  // Convert applications to CSV rows
+  const rows = applications.map(app => {
+    const candidateName = app.applicant?.name || "N/A";
+    const candidateEmail = app.applicant?.email || "N/A";
+    const matchScore = app.aiMatchScore !== null && app.aiMatchScore !== undefined ? `${app.aiMatchScore}%` : "N/A";
+    const matchCategory = app.matchCategory || "N/A";
+    const appStatus = app.status || "pending";
+    const applyDate = new Date(app.createdAt).toLocaleDateString();
+    const resumeLink = app.resumeLink || "N/A";
+    
+    // Clean cover note (escape quotes and remove newlines)
+    const coverNoteClean = (app.coverNote || "")
+      .replace(/"/g, '""')
+      .replace(/\r?\n|\r/g, " ");
+
+    return [
+      `"${candidateName.replace(/"/g, '""')}"`,
+      `"${candidateEmail.replace(/"/g, '""')}"`,
+      `"${matchScore}"`,
+      `"${matchCategory}"`,
+      `"${appStatus}"`,
+      `"${applyDate}"`,
+      `"${resumeLink.replace(/"/g, '""')}"`,
+      `"${coverNoteClean}"`
+    ].join(",");
+  });
+
+  const csvContent = [headers.join(","), ...rows].join("\n");
+
+  res.setHeader("Content-Type", "text/csv");
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename=job-${req.params.id}-applicants.csv`
+  );
+  res.status(200).send(csvContent);
+});
+
+/**
  * @desc    Get current student's applied job IDs
  * @route   GET /api/jobs/my-applications
  * @access  Private (Students only)

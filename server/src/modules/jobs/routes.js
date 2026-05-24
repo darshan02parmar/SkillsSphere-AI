@@ -11,6 +11,7 @@ import {
   getRecruiterAnalytics,
   applyToJobPosting,
   getApplications,
+  exportApplicationsToCSV,
   getMyApplications,
   getMyApplicationsDetailed,
   withdrawJobApplication,
@@ -112,6 +113,7 @@ router
 router.post("/:id/apply", authorizeRoles("student"), applyToJobPosting);
 router.patch("/:id/withdraw", authorizeRoles("student"), withdrawJobApplication);
 router.get("/:id/applications", authorizeRoles("recruiter"), getApplications);
+router.get("/:id/applications/export", authorizeRoles("recruiter"), exportApplicationsToCSV);
 router.patch("/applications/:id/status", authorizeRoles("recruiter"), updateApplicationStatus);
 
 export default router;
