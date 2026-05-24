@@ -74,11 +74,11 @@ export const verifyLink = async (url) => {
 
     const response = await axios.get(url, {
       timeout: 5000,
-      maxRedirects: 5,
+      maxRedirects: 0, // SSRF Mitigation: Prevent attacker from returning a 302 redirect to a private IP
+      validateStatus: (status) => status >= 200 && status < 400, // Treat redirects (3xx) as a valid reachable link
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
       },
-      // We only care about headers, but some sites block HEAD requests
       method: "GET", 
     });
 

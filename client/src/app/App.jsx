@@ -35,7 +35,6 @@ import TutorInterviewConsole from "../modules/mock-interview/pages/TutorIntervie
 import TutorInterviewsList from "../modules/mock-interview/pages/TutorInterviewsList";
 import TutorAnalyticsDashboard from "../modules/analytics/TutorAnalyticsDashboard";
 import ProtectedRoute from "../shared/components/ProtectedRoute";
-import ThemeToggle from "../shared/components/ThemeToggle";
 import SocketNotificationListener from "../shared/components/SocketNotificationListener";
 function App() {
   const dispatch = useDispatch();
@@ -48,7 +47,7 @@ function App() {
   }, [dispatch, token]);
 
   return (
-    <div className="min-h-screen bg-white text-black dark:bg-dark-bg dark:text-text-main transition-colors duration-300">
+    <div className="min-h-screen bg-[var(--background)] text-[var(--text-main)] transition-colors duration-300">
       <SocketNotificationListener />
 
       <Routes>

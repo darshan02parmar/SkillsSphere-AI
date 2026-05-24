@@ -6,7 +6,8 @@ dotenv.config({ override: true });
 import http from "http";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { Server } from "socket.io";
-import connectDB from "./src/database/db.js";
+import connectDB, { isConnected } from "./src/database/db.js";
+import requireDB from "./src/middleware/requireDB.js";
 import authRoutes from "./src/modules/auth/routes.js";
 import resumeRoutes from "./src/modules/resumes/routes.js";
 import jobRoutes from "./src/modules/jobs/routes.js";
@@ -24,11 +25,12 @@ import { initInterviewSockets } from "./src/modules/interviews/socket.js";
 import globalErrorHandler from "./src/middleware/errorMiddleware.js";
 import { logEvaluatorConfig } from "./src/config/evaluatorConfig.js";
 import { setIO } from "./src/utils/socketIO.js";
+import { connectRedis } from "./src/config/redis.js";
 import { initNotificationSockets } from "./src/modules/notifications/socket.js";
 import { verifySocketToken } from "./src/middleware/authMiddleware.js";
-import swaggerUi from 'swagger-ui-express';
-import swaggerSpec from './src/config/swaggerConfig.js';
-import { validateEnv } from './src/config/validateEnv.js';
+import swaggerUi from "swagger-ui-express";
+import swaggerSpec from "./src/config/swaggerConfig.js";
+import { validateEnv } from "./src/config/validateEnv.js";
 import analyticsRoutes from "./src/modules/analytics/routes.js";
 const app = express();
 app.set("trust proxy", 1);
@@ -78,14 +80,15 @@ app.use((req, res, next) => {
   next();
 });
 
-await connectDB();
+await connectRedis();
+connectDB();
 logEvaluatorConfig();
 
 app.get("/health", (req, res) => {
-  res.json({ status: "OK" });
+  res.json({ status: "OK", db: isConnected ? "connected" : "disconnected" });
 });
 
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.post("/api/chat", async (req, res) => {
   try {
@@ -115,19 +118,19 @@ User message: ${message}`;
   }
 });
 
-app.use("/api/auth", authRoutes);
-app.use("/api/resume", resumeRoutes);
-app.use("/api/jobs", jobRoutes);
-app.use("/api/roadmap", roadmapRoutes);
-app.use("/api/matching", matchingRoutes);
-app.use("/api/dashboard", dashboardRoutes);
-app.use("/api/cover-letters", coverLetterRoutes);
-app.use("/api/classrooms", classroomRoutes);
-app.use("/api/users", userRoutes);
-app.use("/api/interviews", interviewRoutes);
-app.use("/api/files", fileRoutes);
-app.use("/api/notifications", notificationRoutes);
-app.use("/api/analytics", analyticsRoutes);
+app.use("/api/auth", requireDB, authRoutes);
+app.use("/api/resume", requireDB, resumeRoutes);
+app.use("/api/jobs", requireDB, jobRoutes);
+app.use("/api/roadmap", requireDB, roadmapRoutes);
+app.use("/api/matching", requireDB, matchingRoutes);
+app.use("/api/dashboard", requireDB, dashboardRoutes);
+app.use("/api/cover-letters", requireDB, coverLetterRoutes);
+app.use("/api/classrooms", requireDB, classroomRoutes);
+app.use("/api/users", requireDB, userRoutes);
+app.use("/api/interviews", requireDB, interviewRoutes);
+app.use("/api/files", requireDB, fileRoutes);
+app.use("/api/notifications", requireDB, notificationRoutes);
+app.use("/api/analytics", requireDB, analyticsRoutes);
 
 initClassroomSockets(io);
 initNotificationSockets(io);
