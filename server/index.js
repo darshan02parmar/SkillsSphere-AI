@@ -69,7 +69,10 @@ io.use(async (socket, next) => {
 
 setIO(io);
 
-app.use(cors());
+app.use(cors({
+  origin: ALLOWED_ORIGINS,
+  credentials: true,
+}));
 app.use(express.json());
 
 // Security headers
