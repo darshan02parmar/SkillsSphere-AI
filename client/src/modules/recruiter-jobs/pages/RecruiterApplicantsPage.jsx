@@ -42,6 +42,32 @@ const matchCategoryStyles = {
   "Weak Alignment": "bg-red-500/10 text-red-400 border-red-500/20",
 };
 
+const getSignalStyle = (signal) => {
+  if (signal.includes("Fast-Track") || signal.includes("Strong")) {
+    return "bg-purple-500/10 text-purple-400 border-purple-500/30 shadow-[0_0_10px_rgba(168,85,247,0.2)]";
+  }
+  if (signal.includes("Interview") || signal.includes("Round")) {
+    return "bg-blue-500/10 text-blue-400 border-blue-500/30";
+  }
+  if (signal.includes("Required") || signal.includes("Needed") || signal.includes("Weakness")) {
+    return "bg-amber-500/10 text-amber-400 border-amber-500/30";
+  }
+  if (signal.includes("Growth")) {
+    return "bg-emerald-500/10 text-emerald-400 border-emerald-500/30";
+  }
+  return "bg-slate-500/10 text-slate-400 border-slate-500/30";
+};
+
+const getSignalIcon = (signal) => {
+  if (signal.includes("Fast-Track") || signal.includes("Strong")) {
+    return <Sparkles size={12} className="mr-1 inline" />;
+  }
+  if (signal.includes("Required") || signal.includes("Needed")) {
+    return <AlertTriangle size={12} className="mr-1 inline" />;
+  }
+  return <Award size={12} className="mr-1 inline" />;
+};
+
 const filterStatuses = [
   { value: "", label: "All Statuses" },
   { value: "pending", label: "Pending" },
@@ -623,9 +649,17 @@ const RecruiterApplicantsPage = () => {
                                   <Sparkles size={16} className="text-emerald-400" />
                                   {app.aiMatchScore}%
                                 </span>
-                                <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded border mt-1 ${matchCategoryStyles[app.matchCategory] || "text-slate-400 border-white/10"}`}>
-                                  {app.matchCategory || "Evaluated"}
-                                </span>
+                                <div className="flex flex-col items-end gap-1 mt-1">
+                                  <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded border ${matchCategoryStyles[app.matchCategory] || "text-slate-400 border-white/10"}`}>
+                                    {app.matchCategory || "Evaluated"}
+                                  </span>
+                                  {app.aiHiringSignals && app.aiHiringSignals.length > 0 && (
+                                    <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded border ${getSignalStyle(app.aiHiringSignals[0])}`}>
+                                      {getSignalIcon(app.aiHiringSignals[0])}
+                                      {app.aiHiringSignals[0]}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             )}
                             <div className="flex items-center gap-2">
@@ -681,6 +715,22 @@ const RecruiterApplicantsPage = () => {
                                   </div>
                                 </div>
                               </div>
+
+                              {app.aiHiringSignals && app.aiHiringSignals.length > 0 && (
+                                <div className="space-y-3 pt-6 border-t border-white/5">
+                                  <h4 className="text-sm font-bold text-purple-400 uppercase tracking-widest flex items-center gap-2">
+                                    <Award size={16} /> Interview Readiness Signals
+                                  </h4>
+                                  <div className="flex flex-wrap gap-2">
+                                    {app.aiHiringSignals.map((signal, idx) => (
+                                      <div key={idx} className={`flex items-center px-3 py-1.5 rounded-lg border text-xs font-bold uppercase tracking-wider ${getSignalStyle(signal)}`}>
+                                        {getSignalIcon(signal)}
+                                        {signal}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
 
                               {app.aiRecruiterInsights && app.aiRecruiterInsights.length > 0 && (
                                 <div className="space-y-3 pt-6 border-t border-white/5">

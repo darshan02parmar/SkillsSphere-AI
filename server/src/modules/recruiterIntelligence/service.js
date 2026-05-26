@@ -142,9 +142,48 @@ export const evaluateCandidateMatch = async (applicationId) => {
       weaknesses.push("No major weaknesses detected.");
     }
 
+    // 6.75 Generate AI Hiring Signals (Interview Readiness Badges)
+    const signals = [];
+    
+    // Fast-Track Candidate
+    if (finalScore > 90 && atsScore > 85 && (contributionActivity === "High" || contributionActivity === "Medium")) {
+      signals.push("Fast-Track Candidate");
+    }
+    
+    // Strong Hiring Signal
+    if (finalScore >= 85 && !signals.includes("Fast-Track Candidate")) {
+      signals.push("Strong Hiring Signal");
+    }
+
+    // Technical Interview Recommended
+    if (skillScore >= 80 && careerReadiness === "Low") {
+      signals.push("Technical Interview Recommended");
+    }
+
+    // HR Round Recommended
+    if (careerReadiness === "High" && finalScore >= 80) {
+      signals.push("HR Round Recommended");
+    }
+
+    // Skill Validation Required
+    if (finalScore >= 70 && missingSkills.length > 0) {
+      signals.push("Skill Validation Required");
+    }
+
+    // ATS Optimization Needed
+    if (atsScore < 60 && finalScore >= 70) {
+      signals.push("ATS Optimization Needed");
+    }
+
+    // Growth Potential Candidate
+    if (category === "Growth Potential") {
+      signals.push("Growth Potential Candidate");
+    }
+
     // 7. Update Application Document
     application.aiMatchScore = finalScore;
     application.matchCategory = category;
+    application.aiHiringSignals = signals;
     application.matchBreakdown = {
       atsCompatibility: atsScore,
       skillMatch: skillScore,
