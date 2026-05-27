@@ -1,14 +1,7 @@
+import { API_URL } from "../config/env";
+
 const getApiBaseUrl = () => {
-  try {
-    const env = import.meta?.env;
-    return (
-      env?.VITE_API_URL ||
-      env?.VITE_API_BASE_URL ||
-      ""
-    );
-  } catch {
-    return "";
-  }
+  return API_URL;
 };
 
 const toUrl = (path) => {
