@@ -4,8 +4,11 @@ import Input from "../../shared/components/Input";
 import Button from "../../shared/components/Button";
 import { useToast } from "../../shared/components";
 import { API_URL } from "../../config/env";
+import { useDocumentTitle } from "../../hooks/useDocumentTitle";
+
 
 const ForgotPassword = () => {
+  useDocumentTitle("Forgot Password");
   const navigate = useNavigate();
   const { success, error: showError } = useToast();
   const [email, setEmail] = useState("");

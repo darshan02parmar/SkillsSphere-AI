@@ -8,8 +8,10 @@ import Input from "../../shared/components/Input";
 import Select from "../../shared/components/Select";
 import Navbar from "../../shared/landing/Navbar";
 import { API_URL } from "../../config/env";
+import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 
 const Register = () => {
+  useDocumentTitle("Register");
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { loading } = useSelector((state) => state.auth);

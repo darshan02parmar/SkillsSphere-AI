@@ -18,8 +18,11 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import Navbar from "../../../shared/landing/Navbar";
+import { useDocumentTitle } from "../../../hooks/useDocumentTitle";
+
 
 const InterviewResults = () => {
+  useDocumentTitle("Interview Results");
   const { id: sessionId } = useParams();
   const navigate = useNavigate();
   const [results, setResults] = useState(null);

@@ -8,8 +8,11 @@ import {
   getStudentsRoadmaps, getStudentRoadmap, assignTutorResource, verifyTopic, addTutorMilestone 
 } from "../services/roadmapService";
 import { LoadingState, useToast } from "../../../shared/components";
+import { useDocumentTitle } from "../../../hooks/useDocumentTitle";
+
 
 export default function TutorRoadmapLobby() {
+  useDocumentTitle("Tutor Roadmap Lobby");
   const { user } = useSelector((state) => state.auth);
   const { success: showSuccess, error: showError } = useToast();
   const [students, setStudents] = useState([]);

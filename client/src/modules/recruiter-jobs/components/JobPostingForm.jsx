@@ -4,6 +4,8 @@ import Input from "../../../shared/components/Input";
 import Select from "../../../shared/components/Select";
 import Button from "../../../shared/components/Button";
 import { useToast } from "../../../shared/components";
+import { useDocumentTitle } from "../../../hooks/useDocumentTitle";
+
 
 const STATUS_OPTIONS = [
   { value: "draft", label: "Draft" },
@@ -53,6 +55,7 @@ const getSubmitErrorMessage = (error) => {
 };
 
 const JobPostingForm = ({ onSubmit, initialData = {}, isLoading = false, fieldErrors = {} }) => {
+  useDocumentTitle("Job Posting Form");
   const { success, error: showError } = useToast();
   const [formData, setFormData] = useState({
     title: initialData.title || "",

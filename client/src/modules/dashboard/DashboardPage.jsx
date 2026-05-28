@@ -51,6 +51,7 @@ import SuggestionItem from "./components/SuggestionItem";
 import StatCard from "./components/StatCard";
 import PerformanceTrend from "./components/PerformanceTrend";
 import VersionComparisonModal from "./components/VersionComparisonModal";
+import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 
 const ROLE_LABELS = {
   student: "Student",
@@ -66,6 +67,7 @@ const DASHBOARD_SIDEBAR_ITEMS = [
 ];
 
 const DashboardPage = () => {
+  useDocumentTitle("Dashboard");
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { user, token } = useSelector((state) => state.auth);

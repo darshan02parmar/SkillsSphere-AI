@@ -5,8 +5,11 @@ import { PlayCircle, PauseCircle, Save, ArrowLeft, MessageSquare, CheckCircle, A
 import { apiRequest } from "../../../services/apiClient.js";
 import Navbar from "../../../shared/landing/Navbar";
 import { API_URL } from "../../../config/env";
+import { useDocumentTitle } from "../../../hooks/useDocumentTitle";
+
 
 const TutorInterviewConsole = () => {
+  useDocumentTitle("Tutor Interview Console");
   const { id } = useParams(); // wait, react-router-dom provides this
   const navigate = useNavigate();
   const { token } = useSelector((state) => state.auth);

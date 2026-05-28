@@ -13,8 +13,10 @@ import ResumeSkeleton from "../components/ResumeSkeleton";
 import { analyzeResume, getLatestResumeAnalysis } from "../services/resumeService";
 import { syncRoadmap } from "../../roadmap/services/roadmapService";
 import { FileText, Sparkles, RefreshCw, Clock } from "lucide-react";
+import { useDocumentTitle } from "../../../hooks/useDocumentTitle";
 
 const ResumeAnalyzerPage = () => {
+  useDocumentTitle("Resume Analyzer");
   const { success, error: showError, warning } = useToast();
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);

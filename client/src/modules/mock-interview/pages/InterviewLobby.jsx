@@ -7,6 +7,7 @@ import Button from "../../../shared/components/Button";
 import Select from "../../../shared/components/Select";
 import { Play, GraduationCap, History, Loader2, Sparkles, Zap, ChevronRight } from "lucide-react";
 import { getTopics, startSession } from "../services/interviewService";
+import { useDocumentTitle } from "../../../hooks/useDocumentTitle";
 
 const DIFFICULTY_LEVELS = [
   { value: "easy", label: "Easy" },
@@ -15,6 +16,7 @@ const DIFFICULTY_LEVELS = [
 ];
 
 const InterviewLobby = () => {
+  useDocumentTitle("Interview Lobby");
   const navigate = useNavigate();
   const [isMediaReady, setIsMediaReady] = useState(false);
   const [selectedPersona, setSelectedPersona] = useState("friendly");

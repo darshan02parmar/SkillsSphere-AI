@@ -9,8 +9,10 @@ import {
   getActiveClassroomSessions,
 } from "../services/classroomService";
 import Navbar from "../../../shared/landing/Navbar";
+import { useDocumentTitle } from "../../../hooks/useDocumentTitle";
 
 export default function ClassroomsDashboard() {
+  useDocumentTitle("Classrooms Dashboard");
   const { user, token } = useSelector((state) => state.auth);
   const [title, setTitle] = useState("");
   const [subject, setSubject] = useState("");

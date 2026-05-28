@@ -7,8 +7,10 @@ import Button from "../../shared/components/Button";
 import { useToast } from "../../shared/components";
 import Navbar from "../../shared/landing/Navbar";
 import { API_URL } from "../../config/env";
+import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 
 const Login = () => {
+  useDocumentTitle("Login");
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();

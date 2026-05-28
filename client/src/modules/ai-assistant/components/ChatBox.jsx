@@ -1,8 +1,11 @@
 import { useState } from "react";
 import MessageBubble from "./MessageBubble";
 import { API_URL } from "../../../config/env";
+import { useDocumentTitle } from "../../../hooks/useDocumentTitle";
+
 
 const ChatBox = () => {
+  useDocumentTitle("Chat Box");
   const [messages, setMessages] = useState([
     { sender: "bot", text: "Hi! How can I help you?" },
   ]);

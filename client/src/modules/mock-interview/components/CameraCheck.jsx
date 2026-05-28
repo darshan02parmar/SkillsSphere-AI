@@ -1,7 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Video, VideoOff, Mic } from "lucide-react";
+import { useDocumentTitle } from "../../../hooks/useDocumentTitle";
+
 
 const CameraCheck = ({ onStreamReady }) => {
+  useDocumentTitle("Camera Check");
   const videoRef = useRef(null);
   const [stream, setStream] = useState(null);
   const [error, setError] = useState(null);

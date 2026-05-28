@@ -11,8 +11,11 @@ import {
   AlertCircle,
 } from "lucide-react";
 import Navbar from "../../../shared/landing/Navbar";
+import { useDocumentTitle } from "../../../hooks/useDocumentTitle";
+
 
 const InterviewHistory = () => {
+  useDocumentTitle("Interview History");
   const navigate = useNavigate();
   const [sessions, setSessions] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0 });

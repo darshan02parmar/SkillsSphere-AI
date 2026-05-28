@@ -26,6 +26,8 @@ import Navbar from '../../../shared/landing/Navbar';
 import { Button, LoadingState, ErrorState, EmptyState, StatusUpdateModal, StatusTimeline } from '../../../shared/components';
 import { getJobApplications, updateApplicationStatus, getJobPostingById, exportJobApplicationsCSV } from '../services/jobPostingService';
 import { exportToCSV, exportToPDF } from '../../../utils/exportUtils';
+import { useDocumentTitle } from "../../../hooks/useDocumentTitle";
+
 
 const statusStyles = {
   pending: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
@@ -98,6 +100,7 @@ const presets = [
 ];
 
 const RecruiterApplicantsPage = () => {
+  useDocumentTitle("Recruiter Applicants");
   const { id: jobId } = useParams();
   const navigate = useNavigate();
   const { token } = useSelector((state) => state.auth);

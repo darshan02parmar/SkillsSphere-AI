@@ -8,8 +8,10 @@ import { JobViewerCard, Pagination } from "../../../shared/components";
 import JobApplyForm from "../../student-jobs/components/JobApplyForm";
 import { applyToJob, getMyAppliedJobIds } from "../../student-jobs/services/jobService";
 import { getRecommendations } from "../services/matcherService";
+import { useDocumentTitle } from "../../../hooks/useDocumentTitle";
 
 export default function JobMatcherPage() {
+  useDocumentTitle("Job Matcher");
   const { token, user } = useSelector((state) => state.auth);
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);

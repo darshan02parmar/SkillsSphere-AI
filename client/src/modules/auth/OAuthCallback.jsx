@@ -4,8 +4,11 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { setOAuthData } from '../../features/auth/authSlice';
 import { useToast } from '../../shared/components';
 import { API_URL } from "../../config/env";
+import { useDocumentTitle } from "../../hooks/useDocumentTitle";
+
 
 const OAuthCallback = () => {
+  useDocumentTitle("OAuth Callback");
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();

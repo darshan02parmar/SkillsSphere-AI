@@ -12,8 +12,11 @@ import {
 } from "lucide-react";
 import CoverLetterModal from "../../../shared/components/CoverLetterModal";
 import { generateCoverLetter } from "../../resume-analyzer/services/resumeService";
+import { useDocumentTitle } from "../../../hooks/useDocumentTitle";
+
 
 const CoverLetterHistoryPage = () => {
+  useDocumentTitle("Cover Letter History");
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

@@ -34,10 +34,12 @@ import {
   RefreshCw,
   Info
 } from "lucide-react";
+import { useDocumentTitle } from "../../../hooks/useDocumentTitle";
 
 const TOKEN_KEY = "skillssphere.auth.token";
 
 const InterviewSession = () => {
+  useDocumentTitle("Interview Session");
   const { id: sessionId } = useParams();
   const navigate = useNavigate();
   const textareaRef = useRef(null);

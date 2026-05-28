@@ -5,8 +5,10 @@ import Navbar from "../../../shared/landing/Navbar";
 import { getMyRoadmap, updateTopicStatus } from "../services/roadmapService";
 import { LoadingState, useToast } from "../../../shared/components";
 import ContributionSummaryCard from "../components/ContributionSummaryCard";
+import { useDocumentTitle } from "../../../hooks/useDocumentTitle";
 
 const RoadmapPage = () => {
+  useDocumentTitle("Roadmap");
   const { user } = useSelector((state) => state.auth);
   const { success: showSuccess, error: showError } = useToast();
   const [roadmap, setRoadmap] = useState(null);

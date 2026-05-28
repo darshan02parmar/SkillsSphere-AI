@@ -10,12 +10,15 @@ import ErrorState from "../../../shared/components/ErrorState";
 import EmptyState from "../../../shared/components/EmptyState";
 import JobCardSkeleton from "../../student-jobs/components/JobCardSkeleton";
 import { JobViewerCard, Pagination } from "../../../shared/components";
+import { useDocumentTitle } from "../../../hooks/useDocumentTitle";
 import {
+
   getRecruiterJobs,
   deleteJobPosting,
 } from "../services/jobPostingService";
 
 const RecruiterJobsPage = () => {
+  useDocumentTitle("Recruiter Jobs");
   const navigate = useNavigate();
   const { token } = useSelector((state) => state.auth);
   const [jobs, setJobs] = useState([]);

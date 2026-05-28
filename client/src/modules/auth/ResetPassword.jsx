@@ -5,9 +5,12 @@ import Button from "../../shared/components/Button";
 import { KeyRound, ArrowLeft, CheckCircle } from "lucide-react";
 import { useToast } from "../../shared/components";
 import { API_URL } from "../../config/env";
+import { useDocumentTitle } from "../../hooks/useDocumentTitle";
+
 
 
 const ResetPassword = () => {
+  useDocumentTitle("Reset Password");
   const navigate = useNavigate();
   const location = useLocation();
   const { success: showSuccessToast, error: showErrorToast } = useToast();

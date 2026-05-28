@@ -23,6 +23,8 @@ import {
 } from "../services/jobService";
 import { StatusTimeline } from "../../../shared/components";
 import { useToast } from "../../../shared/components/toast/ToastProvider";
+import { useDocumentTitle } from "../../../hooks/useDocumentTitle";
+
 
 const statusConfig = {
   pending: { label: "Pending", bg: "bg-yellow-500/15", text: "text-yellow-300", border: "border-yellow-500/25" },
@@ -35,6 +37,7 @@ const statusConfig = {
 const BOARD_COLUMNS = ["pending", "reviewed", "shortlisted", "rejected", "withdrawn"];
 
 const MyApplicationsPage = () => {
+  useDocumentTitle("My Applications");
   const { token } = useSelector((state) => state.auth);
   const navigate = useNavigate();
   const toast = useToast();

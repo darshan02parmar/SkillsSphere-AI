@@ -21,6 +21,7 @@ import {
 } from "./services/profileService";
 import LoadingState from "../../shared/components/LoadingState";
 import { getSignedFileUrl } from "../../services/fileService";
+import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -184,6 +185,7 @@ const AvatarEditor = ({ user, roleConfig, onUpload, onRemove, uploading, isEditi
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 const ProfilePage = () => {
+  useDocumentTitle("Profile");
   const { user, token } = useSelector((state) => state.auth);
   const dispatch = useDispatch();
   const navigate = useNavigate();

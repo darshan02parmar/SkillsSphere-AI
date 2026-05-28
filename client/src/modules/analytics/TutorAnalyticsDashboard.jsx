@@ -4,6 +4,8 @@ import { TrendingUp, Users, AlertCircle } from "lucide-react";
 import { useSelector } from "react-redux";
 import { apiRequest } from "../../services/apiClient.js";
 import Navbar from "../../shared/landing/Navbar";
+import { useDocumentTitle } from "../../hooks/useDocumentTitle";
+
 
 // Custom Treemap content for better styling
 const CustomizedContent = (props) => {
@@ -41,6 +43,7 @@ const CustomizedContent = (props) => {
 };
 
 const TutorAnalyticsDashboard = () => {
+  useDocumentTitle("Tutor Analytics");
   const { token } = useSelector((state) => state.auth);
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);

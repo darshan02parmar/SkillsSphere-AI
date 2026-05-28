@@ -4,8 +4,11 @@ import { useSelector } from "react-redux";
 import { Clock, CheckCircle, Video, ArrowRight, User } from "lucide-react";
 import { apiRequest } from "../../../services/apiClient.js";
 import Navbar from "../../../shared/landing/Navbar";
+import { useDocumentTitle } from "../../../hooks/useDocumentTitle";
+
 
 const TutorInterviewsList = () => {
+  useDocumentTitle("Tutor Interviews List");
   const { token } = useSelector((state) => state.auth);
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
