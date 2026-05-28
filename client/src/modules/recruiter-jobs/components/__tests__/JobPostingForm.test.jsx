@@ -46,6 +46,7 @@ describe("JobPostingForm", () => {
     });
 
     expect(await screen.findByRole("button", { name: /posting/i })).toBeDisabled();
+    expect(screen.getByTestId("submit-spinner")).toBeInTheDocument();
     expect(screen.getByRole("form", { hidden: true })).toHaveAttribute("aria-busy", "true");
     expect(screen.getByLabelText(/job title/i)).toBeDisabled();
     expect(screen.getByLabelText(/job description/i)).toBeDisabled();
@@ -59,6 +60,7 @@ describe("JobPostingForm", () => {
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /post job/i })).toBeEnabled();
     });
+    expect(screen.queryByTestId("submit-spinner")).not.toBeInTheDocument();
   });
 
   it("submits successfully and shows a success toast", async () => {
@@ -110,6 +112,8 @@ describe("JobPostingForm", () => {
     expect(
       (await screen.findAllByText("Server error. Please try posting the job again in a moment.")).length,
     ).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: /post job/i })).toBeEnabled();
+    expect(screen.queryByTestId("submit-spinner")).not.toBeInTheDocument();
   });
 
   it("prevents duplicate submissions while the request is pending", async () => {
@@ -128,10 +132,41 @@ describe("JobPostingForm", () => {
     });
 
     expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: /posting/i })).toBeDisabled();
 
     await act(async () => {
       resolveSubmit({ success: true });
       await submitPromise;
+    });
+  });
+
+  it("uses update loading text for edit submissions", async () => {
+    const user = userEvent.setup();
+    let resolveSubmit;
+    const submitPromise = new Promise((resolve) => {
+      resolveSubmit = resolve;
+    });
+    const onSubmit = vi.fn().mockReturnValue(submitPromise);
+
+    renderForm({
+      onSubmit,
+      initialData: { ...validInitialData, _id: "job-123" },
+    });
+
+    await act(async () => {
+      await user.click(screen.getByRole("button", { name: /update job/i }));
+    });
+
+    expect(await screen.findByRole("button", { name: /updating/i })).toBeDisabled();
+    expect(screen.getByTestId("submit-spinner")).toBeInTheDocument();
+
+    await act(async () => {
+      resolveSubmit({ success: true });
+      await submitPromise;
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /update job/i })).toBeEnabled();
     });
   });
 });
