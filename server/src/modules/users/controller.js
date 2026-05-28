@@ -14,6 +14,7 @@ import fs from "fs";
 import path from "path";
 import { buildAvatarFileUrl } from "../../utils/uploadPaths.js";
 import { cascadeDeleteUser } from "../../utils/cascadeDelete.js";
+import { getBackendUrl } from "../../config/env.js";
 import { safeDeleteAvatarByUrl } from "../../utils/fileUtils.js";
 
 /**
@@ -74,7 +75,7 @@ export const uploadAvatar = asyncHandler(async (req, res, next) => {
   const currentUser = await User.findById(req.user._id);
   safeDeleteAvatarByUrl(currentUser?.profilePic);
 
-  const baseUrl = process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 5000}`;
+  const baseUrl = getBackendUrl();
   const profilePic = `${baseUrl}${buildAvatarFileUrl(req.file.filename)}`;
 
   const updatedUser = await User.findByIdAndUpdate(
