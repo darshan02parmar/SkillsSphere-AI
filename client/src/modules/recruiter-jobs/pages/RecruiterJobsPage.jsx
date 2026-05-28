@@ -17,6 +17,13 @@ import {
   deleteJobPosting,
 } from "../services/jobPostingService";
 
+const STATUS_FILTERS = [
+  { value: "all", label: "All Jobs" },
+  { value: "open", label: "Open" },
+  { value: "closed", label: "Closed" },
+  { value: "archived", label: "Archived" },
+];
+
 const RecruiterJobsPage = () => {
   useDocumentTitle("Recruiter Jobs");
   const navigate = useNavigate();
@@ -25,6 +32,7 @@ const RecruiterJobsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
@@ -97,11 +105,34 @@ const RecruiterJobsPage = () => {
     const locationString = job.location
       ? `${job.location.city}, ${job.location.state}, ${job.location.country}`
       : "";
-    return (
+    const matchesSearch =
       job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      locationString.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+      locationString.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus =
+      statusFilter === "all" || job.status?.toLowerCase() === statusFilter;
+
+    return matchesSearch && matchesStatus;
   });
+
+  const activeStatusLabel =
+    STATUS_FILTERS.find((filter) => filter.value === statusFilter)?.label ||
+    "All Jobs";
+  const hasActiveFilters = Boolean(searchTerm) || statusFilter !== "all";
+  const emptyTitle =
+    statusFilter !== "all"
+      ? `No ${activeStatusLabel.toLowerCase()} jobs found`
+      : searchTerm
+        ? "No matching jobs found"
+        : "No job postings yet";
+  const emptyDescription =
+    hasActiveFilters
+      ? "Try adjusting your search or status filter."
+      : "Get started by creating your first job posting to find the best candidates.";
+
+  const clearFilters = () => {
+    setSearchTerm("");
+    setStatusFilter("all");
+  };
 
   const handleEditJob = (job) => {
     navigate(`/recruiter/jobs/edit/${job._id || job.id}`);
@@ -153,15 +184,42 @@ const RecruiterJobsPage = () => {
           </Link>
         </div>
 
-        <div className="relative">
-          <Input
-            id="search-jobs"
-            placeholder="Search by title or location..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            leftIcon={<Search size={18} />}
-            className="max-w-md"
-          />
+        <div className="flex flex-col gap-4 rounded-xl border border-white/10 bg-slate-900/60 p-4 shadow-lg shadow-black/10 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative w-full sm:max-w-md">
+            <Input
+              id="search-jobs"
+              placeholder="Search by title or location..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              leftIcon={<Search size={18} />}
+            />
+          </div>
+
+          <div
+            className="flex flex-wrap gap-2"
+            role="group"
+            aria-label="Filter jobs by status"
+          >
+            {STATUS_FILTERS.map((filter) => {
+              const isActive = statusFilter === filter.value;
+
+              return (
+                <button
+                  key={filter.value}
+                  type="button"
+                  aria-pressed={isActive}
+                  onClick={() => setStatusFilter(filter.value)}
+                  className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                    isActive
+                      ? "border-blue-400 bg-blue-500/20 text-blue-100"
+                      : "border-slate-700 bg-slate-800/80 text-slate-300 hover:border-slate-500 hover:bg-slate-800"
+                  }`}
+                >
+                  {filter.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {loading ? (
@@ -175,34 +233,28 @@ const RecruiterJobsPage = () => {
         ) : filteredJobs.length === 0 ? (
           <EmptyState
             icon={<Briefcase size={48} className="text-slate-600" />}
-            title={
-              searchTerm ? "No matching jobs found" : "No job postings yet"
-            }
-            description={
-              searchTerm
-                ? "No matching skills found. Try another keyword."
-                : "Get started by creating your first job posting to find the best candidates."
-            }
+            title={emptyTitle}
+            description={emptyDescription}
             action={
-            searchTerm ? (
-              <Button
-              variant="primary"
-              className="bg-blue-600 hover:bg-blue-500 mt-4"
-              onClick={() => setSearchTerm("")}
-            >
-              Clear Search
-            </Button>
-            ) : (
-            <Link to="/recruiter/jobs/new">
-              <Button
-              variant="primary"
-              className="bg-blue-600 hover:bg-blue-500 mt-4"
-              >
-              Create First Posting
-              </Button>
-            </Link>
-           )
-        }
+              hasActiveFilters ? (
+                <Button
+                  variant="primary"
+                  className="bg-blue-600 hover:bg-blue-500 mt-4"
+                  onClick={clearFilters}
+                >
+                  Clear Filters
+                </Button>
+              ) : (
+                <Link to="/recruiter/jobs/new">
+                  <Button
+                    variant="primary"
+                    className="bg-blue-600 hover:bg-blue-500 mt-4"
+                  >
+                    Create First Posting
+                  </Button>
+                </Link>
+              )
+            }
           />
         ) : (
           <div className="grid grid-cols-1 gap-4">
@@ -220,7 +272,7 @@ const RecruiterJobsPage = () => {
           </div>
         )}
 
-        {!loading && !error && filteredJobs.length > 0 && !searchTerm && (
+        {!loading && !error && filteredJobs.length > 0 && !hasActiveFilters && (
           <Pagination
             currentPage={currentPage}
             totalPages={totalPages}
