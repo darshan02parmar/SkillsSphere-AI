@@ -76,3 +76,16 @@ export const saveCachedAnalysis = async (cacheData) => {
     { new: true, upsert: true, runValidators: true }
   );
 };
+
+/**
+ * Validate resume text properties (e.g. word count).
+ * Returns true if the resume text is extremely short (potentially a scanned PDF).
+ * 
+ * @param {string} text - Extracted resume text
+ * @returns {boolean} isScannedPdf
+ */
+export const validateExtractedText = (text) => {
+  if (!text) return true;
+  const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
+  return wordCount < 20;
+};

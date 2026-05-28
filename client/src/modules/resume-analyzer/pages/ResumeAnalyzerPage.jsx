@@ -14,6 +14,7 @@ import { analyzeResume, getLatestResumeAnalysis } from "../services/resumeServic
 import { syncRoadmap } from "../../roadmap/services/roadmapService";
 import { FileText, Sparkles, RefreshCw, Clock } from "lucide-react";
 import { useDocumentTitle } from "../../../hooks/useDocumentTitle";
+import ConfirmDialog from "../../../shared/components/ConfirmDialog";
 
 const ResumeAnalyzerPage = () => {
   useDocumentTitle("Resume Analyzer");
@@ -23,6 +24,7 @@ const ResumeAnalyzerPage = () => {
   const [error, setError] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
   const [jobDescription, setJobDescription] = useState("");
+  const [showScannedModal, setShowScannedModal] = useState(false);
 
   // Track whether we are showing a DB-loaded scan (not a fresh live analysis)
   const [isLoadingLatest, setIsLoadingLatest] = useState(true);
@@ -71,6 +73,10 @@ const ResumeAnalyzerPage = () => {
       const result = await analyzeResume(selectedFile, jobDescription);
       setResult(result);
       setIsViewingLatest(false); // Fresh live result — hide the "latest scan" banner
+
+      if (result.isScannedPdf) {
+        setShowScannedModal(true);
+      }
 
       // Sync Roadmap if classification and suggestions exist
       if (result.classification?.level && result.gapAnalysis?.suggestions) {
@@ -255,6 +261,22 @@ const ResumeAnalyzerPage = () => {
           ))}
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={showScannedModal}
+        title="Scanned Resume Detected"
+        message="We detected very little readable text in your resume. It appears to be a scanned document or an image. For the best AI matching and feedback, please upload a text-selectable PDF, DOCX, or TXT file."
+        confirmText="Upload Another"
+        cancelText="View Results Anyway"
+        variant="warning"
+        onConfirm={() => {
+          setShowScannedModal(false);
+          resetAnalyzer();
+        }}
+        onCancel={() => {
+          setShowScannedModal(false);
+        }}
+      />
     </div>
   );
 };

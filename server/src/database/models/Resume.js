@@ -64,6 +64,10 @@ const resumeSchema = new mongoose.Schema(
       default: null,
       select: false, // Don't include in queries by default for privacy
     },
+    isScannedPdf: {
+      type: Boolean,
+      default: false,
+    },
     jobSkills: {
       type: [String],
       default: [],

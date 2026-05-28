@@ -21,6 +21,7 @@ const defaultDependencies = {
   upsertResume: (userId, payload) => resumeService.upsertResume(userId, payload),
   findCachedAnalysis: (resumeHash, jdHash) => resumeService.findCachedAnalysis(resumeHash, jdHash),
   saveCachedAnalysis: (cacheData) => resumeService.saveCachedAnalysis(cacheData),
+  validateExtractedText: (text) => resumeService.validateExtractedText(text),
 };
 
 
@@ -149,6 +150,8 @@ export const analyzeResume = asyncHandler(async (req, res, next) => {
   const parsedData = await controllerDependencies.parseResume(file.path);
   console.timeEnd("ResumeParsing");
 
+  const isScannedPdf = controllerDependencies.validateExtractedText(parsedData.resumeText || "");
+
   const jobSkills = normalizeJobSkills(req.body.jobSkills);
   if (jobSkills === null) {
     return next(new AppError("jobSkills must be a valid JSON array", 400));
@@ -178,6 +181,7 @@ export const analyzeResume = asyncHandler(async (req, res, next) => {
       mode: safePipeline.mode || "match",
       evaluatorBreakdown,
       aggregatedScore: overallScore,
+      isScannedPdf,
       file: {
         originalName: file.originalname,
         storedName: file.filename,
@@ -228,6 +232,7 @@ export const analyzeResume = asyncHandler(async (req, res, next) => {
       file: savedResume.file,
       evaluatorBreakdown,
       overallScore,
+      isScannedPdf,
     });
   }
 
@@ -267,6 +272,7 @@ export const analyzeResume = asyncHandler(async (req, res, next) => {
     mode: pipelineResult.mode || "match",
     evaluatorBreakdown,
     aggregatedScore: overallScore,
+    isScannedPdf,
     file: {
       originalName: file.originalname,
       storedName: file.filename,
@@ -331,6 +337,7 @@ export const analyzeResume = asyncHandler(async (req, res, next) => {
     file: savedResume.file,
     evaluatorBreakdown,
     overallScore,
+    isScannedPdf,
   });
 });
 
