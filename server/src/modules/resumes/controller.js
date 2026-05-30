@@ -120,6 +120,10 @@ export const uploadResume = asyncHandler(async (req, res, next) => {
       mimeType: req.file.mimetype,
     },
   });
+
+  if (req.file?.path) {
+    await fsPromises.unlink(req.file.path).catch(() => {});
+  }
 });
 
 const normalizeJobSkills = (rawSkills) => {
