@@ -2,7 +2,6 @@ import React, { useEffect, Suspense, lazy } from "react";
 import { Routes, Route } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchCurrentUser, logoutUser } from "../features/auth/authSlice";
-import ChatWidget from "../modules/ai-assistant/components/ChatWidget";
 const LandingPage = lazy(() => import("../modules/landing/LandingPage"));
 const PrivacyPolicyPage = lazy(() => import("../modules/landing/pages/PrivacyPolicyPage"));
 const TermsOfServicePage = lazy(() => import("../modules/landing/pages/TermsOfServicePage"));
@@ -43,6 +42,7 @@ const TutorInterviewConsole = lazy(() => import("../modules/mock-interview/pages
 const TutorInterviewsList = lazy(() => import("../modules/mock-interview/pages/TutorInterviewsList"));
 const TutorAnalyticsDashboard = lazy(() => import("../modules/analytics/TutorAnalyticsDashboard"));
 const NotificationsPage = lazy(() => import("../modules/notifications/pages/NotificationsPage"));
+const ChatWidget = lazy(() => import("../modules/ai-assistant/components/ChatWidget"));
 import ProtectedRoute from "../shared/components/ProtectedRoute";
 import SocketNotificationListener from "../shared/components/SocketNotificationListener";
 import ScrollToTop from "../shared/components/ScrollToTop";
@@ -74,7 +74,7 @@ function App() {
       <ScrollToTop />
       <SocketNotificationListener />
 
-      <Suspense fallback={<LoadingState message="Loading module..." />}>
+      <Suspense fallback={<LoadingState title="Loading module..." />}>
       <Routes>
         <Route path="/" element={<LandingPage />} />
         
