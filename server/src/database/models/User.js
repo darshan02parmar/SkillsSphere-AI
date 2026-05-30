@@ -36,7 +36,17 @@ const userSchema = new mongoose.Schema(
       default: null,
     },
 
+    profilePicPublicId: {
+      type: String,
+      default: null,
+    },
+
     isVerified: {
+      type: Boolean,
+      default: false,
+    },
+
+    proFeatures: {
       type: Boolean,
       default: false,
     },

@@ -6,6 +6,7 @@ import { configureStore } from '@reduxjs/toolkit'
 import { MemoryRouter } from 'react-router-dom'
 import RecruiterJobsPage from '../RecruiterJobsPage'
 import * as jobPostingService from '../../services/jobPostingService'
+import { ToastProvider } from '../../../../shared/components/toast/ToastProvider'
 
 // Mock the service
 vi.mock('../../services/jobPostingService', () => ({
@@ -81,10 +82,18 @@ const createMockStore = (token = 'test-token') => {
   })
 }
 
+import { ToastProvider } from '../../../../shared/components/toast/ToastProvider';
+import { ToastProvider } from '../../../../shared/components/toast/ToastProvider'
+
 const renderWithProviders = (component, { store = createMockStore() } = {}) => {
   return render(
     <Provider store={store}>
-      <MemoryRouter>{component}</MemoryRouter>
+      <MemoryRouter>
+        <ToastProvider>{component}</ToastProvider>
+        <ToastProvider>
+          {component}
+        </ToastProvider>
+      </MemoryRouter>
     </Provider>
   )
 }

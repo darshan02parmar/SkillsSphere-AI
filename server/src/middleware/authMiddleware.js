@@ -29,14 +29,14 @@ export const protect = asyncHandler(async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     // 3) Check if token has been revoked (logged out)
-    if (decoded.jti && isTokenBlacklisted(decoded.jti)) {
+    if (decoded.jti && await isTokenBlacklisted(decoded.jti)) {
       return next(
         new AppError("Token has been revoked. Please log in again.", 401)
       );
     }
 
     // 4) Check if user still exists
-    const currentUser = await User.findById(decoded.userId).select("-password");
+    const currentUser = await User.findById(decoded.userId).select("-password").lean();
     if (!currentUser) {
       return next(
         new AppError("The user belonging to this token no longer exists.", 401)
@@ -75,12 +75,26 @@ export const authorizeRoles = (...roles) => {
  * @throws {Error} If token is missing, invalid, or user no longer exists
  */
 export const verifySocketToken = async (token) => {
-  if (!token) throw new Error("Authentication required");
-  const decoded = jwt.verify(token, process.env.JWT_SECRET);
-  if (decoded.jti && isTokenBlacklisted(decoded.jti)) {
+  if (!token) {
+    throw new Error("Missing auth token");
+  }
+
+  let decoded;
+
+  try {
+    decoded = jwt.verify(token, process.env.JWT_SECRET);
+  } catch {
+    throw new Error("Invalid auth token");
+  }
+
+  if (decoded.jti && await isTokenBlacklisted(decoded.jti)) {
     throw new Error("Token has been revoked");
   }
-  const user = await User.findById(decoded.userId).select("-password");
-  if (!user) throw new Error("User not found");
+
+  const user = await User.findById(decoded.userId).select("-password").lean();
+  if (!user) {
+    throw new Error("User not found");
+  }
+
   return user;
 };

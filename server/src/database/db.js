@@ -3,6 +3,8 @@ import mongoose from "mongoose";
 
 export let isConnected = false;
 
+import { seedInterviewData } from "../modules/interviews/seed/seedInterviewData.js";
+
 const connectDB = async () => {
   const mongoUri = process.env.MONGO_URI || process.env.MONGODB_URI;
 
@@ -12,7 +14,10 @@ const connectDB = async () => {
     const uri = mongoServer.getUri();
     console.log(`Started ephemeral Memory Database at: ${uri}`);
     process.env.MONGO_URI = uri;
-    return connectDB();
+    const res = await connectDB();
+    console.log("Memory DB connected. Auto-seeding mock interview data...");
+    await seedInterviewData();
+    return res;
   }
 
   if (!mongoUri) {
@@ -28,6 +33,8 @@ const connectDB = async () => {
   try {
     const conn = await mongoose.connect(mongoUri, {
       serverSelectionTimeoutMS: 15000,
+      maxPoolSize: 10,
+      minPoolSize: 2,
     });
     isConnected = true;
     console.log(`MongoDB Connected Successfully! : ${conn.connection.host}`);

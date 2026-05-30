@@ -10,12 +10,14 @@ import SharedCodeEditor from "../components/SharedCodeEditor";
 
 import { SOCKET_URL } from "../../../config/env";
 import { useDocumentTitle } from "../../../hooks/useDocumentTitle";
+import { useToast } from "../../../shared/components/toast/ToastProvider";
 
 export default function ClassroomRoom() {
   useDocumentTitle("Classroom");
   const { roomId } = useParams();
   const navigate = useNavigate();
   const { user, token } = useSelector((state) => state.auth);
+  const toast = useToast();
 
   const [socket, setSocket] = useState(null);
   const [localStream, setLocalStream] = useState(null);
@@ -94,8 +96,7 @@ export default function ClassroomRoom() {
         s.on("webrtc-offer", (payload) => {
           // Security check: Verify that the caller is a registered participant in this room
           if (!activeSocketIdsRef.current.has(payload.callerSocketId)) {
-            console.error(`Blocked unauthorized WebRTC stream injection from socket: ${payload.callerSocketId}`);
-            alert("Security Warning: Blocked an unauthorized stream injection attempt from outside this classroom.");
+            console.warn(`Silently dropped unauthorized WebRTC stream injection from socket: ${payload.callerSocketId}`);
             return;
           }
 
@@ -117,7 +118,7 @@ export default function ClassroomRoom() {
         // Receiving an answer
         s.on("webrtc-answer", (payload) => {
           if (!activeSocketIdsRef.current.has(payload.answererSocketId)) {
-            console.error(`Blocked unauthorized WebRTC signaling answer from socket: ${payload.answererSocketId}`);
+            console.warn(`Silently dropped unauthorized WebRTC signaling answer from socket: ${payload.answererSocketId}`);
             return;
           }
           const item = peersRef.current.find(p => p.peerId === payload.answererSocketId);
@@ -129,13 +130,13 @@ export default function ClassroomRoom() {
         // Socket security & error handling
         s.on("unauthorized", (payload) => {
           console.error("Socket unauthorized action:", payload);
-          alert(`Security Warning: ${payload.message || "Unauthorized action detected."}`);
+          toast.error(`Security Warning: ${payload.message || "Unauthorized action detected."}`);
           navigate("/classrooms");
         });
 
         s.on("error", (payload) => {
           console.error("Socket error:", payload);
-          alert(`Socket Error: ${payload.message || "An error occurred."}`);
+          toast.error(`Socket Error: ${payload.message || "An error occurred."}`);
           navigate("/classrooms");
         });
 
@@ -160,7 +161,7 @@ export default function ClassroomRoom() {
       })
       .catch(err => {
         console.error("Failed to get local stream", err);
-        alert("Failed to access camera and microphone.");
+        toast.error("Failed to access camera and microphone.");
       });
 
     return () => {

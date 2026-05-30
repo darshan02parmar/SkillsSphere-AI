@@ -18,12 +18,31 @@ const ROLE_LABELS = {
   recruiter: "Recruiter",
 };
 
-const DASHBOARD_SIDEBAR_ITEMS = [
-  { label: "Update Resume", icon: FileText, to: "/resume-analyzer" },
-  { label: "Find Matches", icon: Target, to: "/job-matcher" },
-  { label: "Applied Jobs", icon: Briefcase, to: "/my-applications" },
-  { label: "Live Classrooms", icon: Video, to: "/classrooms" },
-];
+const getSidebarItems = (role) => {
+  if (role === "tutor") {
+    return [
+      { label: "Analytics", icon: Target, to: "/tutor/analytics" },
+      { label: "Roadmaps", icon: FileText, to: "/tutor/roadmaps" },
+      { label: "Interviews", icon: Video, to: "/tutor/interviews" },
+      { label: "Classrooms", icon: Video, to: "/classrooms" },
+    ];
+  }
+  if (role === "recruiter") {
+    return [
+      { label: "Manage Jobs", icon: Briefcase, to: "/recruiter/jobs" },
+      { label: "Talent Finder", icon: Target, to: "/recruiter/talent-finder" },
+      { label: "Analytics", icon: FileText, to: "/recruiter/analytics" },
+    ];
+  }
+  // Default to student
+  return [
+    { label: "Update Resume", icon: FileText, to: "/resume-analyzer" },
+    { label: "Find Matches", icon: Target, to: "/job-matcher" },
+    { label: "Applied Jobs", icon: Briefcase, to: "/my-applications" },
+    { label: "Mock Interviews", icon: Video, to: "/mock-interview" },
+    { label: "Live Classrooms", icon: Video, to: "/classrooms" },
+  ];
+};
 
 const DashboardPage = () => {
   useDocumentTitle("Dashboard");
@@ -70,7 +89,7 @@ const DashboardPage = () => {
             </div>
 
             <nav className="mt-10 space-y-3">
-              {DASHBOARD_SIDEBAR_ITEMS.map((item) => {
+              {getSidebarItems(user?.role).map((item) => {
                 const Icon = item.icon;
                 return (
                   <Link
@@ -138,25 +157,25 @@ const DashboardPage = () => {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400">
+                    <div className={`h-8 w-8 rounded-full flex items-center justify-center ${user?.isVerified ? "bg-emerald-500/20 text-emerald-400" : "bg-slate-500/20 text-slate-400"}`}>
                       <BadgeCheck size={16} />
                     </div>
                     <span className="text-sm font-medium">
-                      Verified Account
+                      {user?.isVerified ? "Verified Account" : "Unverified Account"}
                     </span>
                   </div>
-                  <div className="h-1.5 w-1.5 rounded-full bg-emerald-500"></div>
+                  {user?.isVerified && <div className="h-1.5 w-1.5 rounded-full bg-emerald-500"></div>}
                 </div>
 
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400">
+                    <div className={`h-8 w-8 rounded-full flex items-center justify-center ${user?.proFeatures ? "bg-blue-500/20 text-blue-400" : "bg-slate-500/20 text-slate-400"}`}>
                       <Sparkles size={16} />
                     </div>
                     <span className="text-sm font-medium">Pro Features</span>
                   </div>
-                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-500 text-white">
-                    ACTIVE
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${user?.proFeatures ? "bg-blue-500 text-white" : "bg-slate-500/20 text-slate-500"}`}>
+                    {user?.proFeatures ? "ACTIVE" : "INACTIVE"}
                   </span>
                 </div>
               </div>

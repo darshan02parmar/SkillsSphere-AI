@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import Navbar from "../../../shared/landing/Navbar";
 import CameraCheck from "../components/CameraCheck";
 import PersonaSelector from "../components/PersonaSelector";
 import Button from "../../../shared/components/Button";
 import Select from "../../../shared/components/Select";
-import { Play, GraduationCap, History, Loader2, Sparkles, Zap, ChevronRight } from "lucide-react";
+import { Play, GraduationCap, History, Loader2, Sparkles, Zap, ChevronRight, ArrowLeft } from "lucide-react";
 import { getTopics, startSession } from "../services/interviewService";
 import { useDocumentTitle } from "../../../hooks/useDocumentTitle";
 
@@ -83,6 +83,15 @@ const InterviewLobby = () => {
         
         {/* Header Section */}
         <header className="text-center mb-2 animate-[fadeIn_0.8s_ease-out]">
+          <div className="mb-6">
+            <Link 
+              to="/dashboard" 
+              className="inline-flex items-center gap-2 text-sm text-blue-500 hover:text-blue-400 transition-colors"
+            >
+              <ArrowLeft size={16} />
+              Back to Dashboard
+            </Link>
+          </div>
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 text-xs font-bold uppercase tracking-widest mb-6">
             <Sparkles size={14} /> Cognitive Evaluation Engine
           </div>
@@ -176,11 +185,11 @@ const InterviewLobby = () => {
                   variant="primary"
                   size="lg"
                   className={`w-full py-5 text-lg font-bold rounded-2xl flex items-center justify-center gap-3 transition-all duration-300 ${
-                    !isMediaReady || starting || loading 
+                    !isMediaReady || starting || loading || !topic
                       ? "opacity-60 cursor-not-allowed grayscale" 
                       : "shadow-[0_15px_30px_-10px_rgba(79,70,229,0.5)] hover:shadow-[0_20px_40px_-10px_rgba(79,70,229,0.7)] hover:-translate-y-1 hover:scale-[1.02] bg-gradient-to-r from-indigo-600 to-purple-600 border-none"
                   }`}
-                  disabled={!isMediaReady || starting || loading}
+                  disabled={!isMediaReady || starting || loading || !topic}
                   onClick={handleStartInterview}
                 >
                   {starting ? (
