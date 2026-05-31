@@ -108,18 +108,7 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-// Intercept queries on email to transparently encrypt them so exact matches still work
-userSchema.pre(["find", "findOne", "countDocuments", "findOneAndUpdate", "updateOne"], function (next) {
-  const query = this.getQuery();
-  if (query && query.email) {
-    if (typeof query.email === "string") {
-      query.email = encryptDeterministic(query.email.toLowerCase().trim());
-    } else if (query.email.$in && Array.isArray(query.email.$in)) {
-      query.email.$in = query.email.$in.map(e => encryptDeterministic(e.toLowerCase().trim()));
-    }
-  }
-  next();
-});
+
 
 const User = mongoose.model("User", userSchema);
 export default User;
