@@ -1,138 +1,311 @@
 # Student Module
 
-The Student Module is a comprehensive suite of features designed to help learners track their progress, prepare for interviews, build their skill roadmaps, and apply for jobs. It is tightly integrated with the Resume Analyzer and the Recruiter Intelligence pipelines.
+The Student Module is the core, comprehensive suite of features designed to help learners track their educational progress, prepare for technical interviews, build dynamic skill roadmaps, and ultimately apply for jobs. It acts as the central hub for the student persona, integrating tightly with the **Resume Analyzer** and the **Recruiter Intelligence** pipelines to create a seamless journey from learning to hiring.
+
+This document serves as the exhaustive technical reference for the Student Module's architecture, data flows, and sub-system integrations.
 
 ---
 
-## 1. System Architecture & Component Interactions
+## 1. High-Level System Architecture & Component Interactions
 
-### Mock Interview Workflow
+The Student Module is not a monolith; it is an orchestration of several microservices, real-time socket connections, and caching layers.
 
-The Mock Interview system uses a Python AI microservice to evaluate student responses in real-time.
+### Architectural Pillars
+1. **The React Frontend (`client/src/modules/student-*`)**: A highly interactive, Single Page Application interface heavily utilizing React hooks for media capture (audio for interviews) and complex state management (roadmap graphs).
+2. **The Node.js Backend (`server/src/modules/`)**: The primary API gateway handling authentication, database reads/writes, and business logic orchestration.
+3. **The Python AI Evaluator**: A dedicated microservice utilizing `spaCy` and `sentence-transformers` for deep NLP evaluation of interview answers.
+4. **Redis Cache & Concurrency Lock**: Utilized to prevent race conditions during high-latency operations (like processing audio files).
+5. **MongoDB Aggregation Pipeline**: Used extensively for calculating real-time dashboard metrics across disparate collections.
+
+---
+
+## 2. Sub-Module Deep Dive: The Mock Interview Workflow
+
+The Mock Interview system is the most technically complex feature within the Student Module, requiring real-time audio processing and synchronous AI evaluations.
+
+### The Lifecycle Sequence
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor Student
-    participant FE as React Frontend
-    participant BE as Node.js Backend
-    participant Redis as Redis Cache/Lock
-    participant DB as MongoDB
-    participant AI as Python AI Microservice (spaCy)
+    participant FE as React Frontend (InterviewSession.jsx)
+    participant BE as Node.js Controller (interviews/controller.js)
+    participant Redis as Redis (Concurrency Lock)
+    participant DB as MongoDB (QuestionBank & Sessions)
+    participant AI as Python AI Microservice (FastAPI + spaCy)
 
-    Student->>FE: Starts Interview (Selects Topic & Difficulty)
-    FE->>BE: POST /api/interviews/start
-    BE->>DB: Fetch Questions (avoid recent repeats)
-    DB-->>BE: Return Question List
-    BE->>DB: Create InterviewSession (in_progress)
-    BE-->>FE: Return Session ID & First Question
+    Note over Student, BE: 1. Initialization
+    Student->>FE: Starts Interview (Selects Topic: React)
+    FE->>BE: POST /api/interviews/start { topic: "react" }
+    BE->>DB: Aggregate Random Questions (Avoid recent repeats)
+    DB-->>BE: Return 5 Question Documents
+    BE->>DB: Insert InterviewSession { status: "in_progress" }
+    BE-->>FE: Return Session ID & Question 1
     
-    Student->>FE: Records Audio Answer
-    FE->>BE: POST /api/interviews/:id/answer (FormData)
+    Note over Student, BE: 2. Capture & Submission
+    Student->>FE: Records Audio via MediaRecorder API
+    FE->>BE: POST /api/interviews/:id/answer (FormData: audioBlob)
     
-    Note over BE,Redis: Concurrency Lock to prevent<br/>duplicate question submissions
-    BE->>Redis: Acquire Lock (interview_lock)
+    Note over BE, Redis: 3. Concurrency Protection
+    BE->>Redis: Acquire Lock `interview_lock:{sessionId}`
     
-    BE->>AI: Send Audio Buffer for Transcription (Whisper)
+    Note over BE, AI: 4. AI Evaluation Pipeline
+    BE->>AI: HTTP POST /v1/transcribe (Audio Buffer)
     activate AI
-    AI-->>BE: Return Transcript
+    Note right of AI: Whisper Model Transcription
+    AI-->>BE: Return Raw Transcript
     
-    BE->>AI: Send Transcript + Expected Answer/Concepts
-    AI-->>BE: Return Evaluation (Scores, Concepts, Filler Words)
+    BE->>DB: Fetch Expected Concepts for Question 1
+    BE->>AI: HTTP POST /v1/evaluate { transcript, expectedConcepts }
+    Note right of AI: spaCy NLP Semantic Matching
+    AI-->>BE: Return Evaluation { score, matchedConcepts, missingConcepts }
     deactivate AI
     
-    BE->>DB: Update Session Answer (Scores)
-    BE->>Redis: Release Lock
-    BE-->>FE: Return Scores & Next Question
-    FE-->>Student: Renders live feedback
+    Note over BE, FE: 5. Persistence & Feedback
+    BE->>DB: Update Session Answer Array (Append Scores)
+    BE->>Redis: Release Lock `interview_lock:{sessionId}`
+    BE-->>FE: Return Detailed Scores & Prompt Question 2
+    FE-->>Student: Renders AI feedback instantly
 ```
 
+### Technical Implementation Details
+
+#### 1. Audio Capture (Frontend)
+To minimize payload size, audio is captured using the browser's native `MediaRecorder` API, compressed, and chunked. If the browser lacks support or the user denies microphone permissions, a graceful fallback to a standard text `<textarea>` is provided.
+
+```javascript
+// client/src/modules/mock-interview/hooks/useAudioRecorder.js
+const startRecording = async () => {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorder.current = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+    
+    mediaRecorder.current.ondataavailable = (event) => {
+      if (event.data.size > 0) audioChunks.current.push(event.data);
+    };
+    
+    mediaRecorder.current.start();
+  } catch (err) {
+    handleFallbackToTextMode(err);
+  }
+};
+```
+
+#### 2. Concurrency Locking (Backend)
+Because the Python AI service might take 5-10 seconds to transcribe and evaluate an answer, a frustrated user might click the "Submit" button multiple times. Without locking, this would result in duplicate answers being pushed to the MongoDB array, corrupting the session index.
+
+```javascript
+// server/src/modules/interviews/service.js
+export const processAnswer = async (sessionId, audioBuffer, questionId) => {
+  const lockKey = `interview_lock:${sessionId}`;
+  const isLocked = await redisClient.set(lockKey, "LOCKED", "NX", "EX", 15);
+  
+  if (!isLocked) {
+    throw new AppError("A submission is already processing for this session.", 429);
+  }
+
+  try {
+    // ... proceed with AI calls and DB updates
+  } finally {
+    await redisClient.del(lockKey); // Always release the lock
+  }
+};
+```
+
+#### 3. Fail-Soft AI Mode
+The Python AI microservice represents a potential single point of failure. If the service is unreachable or times out, the backend initiates a "Fail-Soft" mode. It assigns a placeholder score (e.g., 0 or a baseline pass) and flags the answer with `aiError: true`. This allows the student to finish the interview uninterrupted, while alerting the Tutor that manual grading is required.
+
+---
+
+## 3. Sub-Module Deep Dive: Dynamic Learning Roadmaps
+
+The Learning Roadmaps module transforms static skill lists into interactive, gameified Directed Acyclic Graphs (DAGs).
+
 ### Data Flow Integration
-- **Resume Analyzer** -> **Learning Roadmaps**: When a resume is analyzed, missing skills (`gapAnalysis.criticalGaps`) trigger an automatic update to the student's `LearningProgress` roadmap, adding those missing skills as new learning milestones.
-- **Mock Interviews** -> **Tutor Feedback**: Tutors can monitor completed interviews, override scores, and trigger real-time Socket.IO notifications to the student.
+The Roadmap is not an isolated feature; it is deeply integrated with the **Resume Analyzer**.
+1. When a student uploads a new resume, the Analyzer identifies `criticalGaps` (e.g., "Missing State Management experience").
+2. The `POST /api/roadmap/sync` endpoint is automatically triggered in the background.
+3. These missing skills are appended as new, required milestones on the student's `LearningProgress` roadmap.
+
+### Progression Tracking Algorithm
+A student's "Readiness Score" is not a simple percentage. It utilizes a weighted calculation combining standard learning milestones and verified contributions.
+
+```javascript
+// server/src/database/models/LearningProgress.js - Pre-Save Hook
+learningProgressSchema.pre('save', function (next) {
+  const totalNodes = this.roadmap.length;
+  if (totalNodes === 0) return next();
+
+  // 1. Calculate base completion
+  const completedNodes = this.roadmap.filter(n => n.status === 'completed').length;
+  this.overallProgress = Math.round((completedNodes / totalNodes) * 100);
+
+  // 2. Calculate contribution boost (Virtual)
+  // Every merged PR or verified open-source contribution adds a +5% modifier to their Readiness Score
+  const contributionNodes = this.roadmap.filter(n => n.type === 'contribution' && n.status === 'completed').length;
+  this.readinessBoost = Math.min(contributionNodes * 5, 20); // Capped at 20%
+
+  next();
+});
+```
 
 ---
 
-## 2. End-to-End Workflows
+## 4. Sub-Module Deep Dive: Dashboard & Job Application
 
-### A. Mock Interview System
-1. **Session Management**: Students select a topic (e.g., React, Node.js) and difficulty. The backend fetches questions from the `QuestionBank`, specifically filtering out questions the student has seen in their last 3 sessions to ensure variety.
-2. **AI Microservice Integration**: 
-   - Uses `Whisper` for audio transcription.
-   - Evaluates the transcript against `expectedAnswer` and `expectedConcepts` using NLP (`spaCy` + `sentence-transformers`).
-   - Generates scores for: Technical Accuracy, Communication Quality, and Concept Relevance.
-3. **Concurrency Locking**: Because audio transcription and NLP evaluation can take several seconds, a Redis lock (`interview_lock:{sessionId}`) is used to prevent the user from clicking "Submit" twice and corrupting the session state index.
-4. **Fallback Scoring (Fail-Soft Mode)**: If the Python AI service is unreachable or times out, the Node backend catches the error and assigns a mock/zero score, allowing the session to continue gracefully without crashing the frontend.
-5. **Tutor Feedback**: Authorized tutors can review a session, adjust the overall score, add specific feedback per answer, and the student receives a real-time Socket.IO notification.
+### Dashboard Aggregation
+The `StudentDashboard.jsx` provides a unified heads-up display. To achieve this without making 5 separate API calls, the backend utilizes an Aggregation Pipeline to merge data.
 
-### B. Learning Roadmaps
-1. **Dynamic Syncing**: The roadmap is automatically synchronized when the user's active resume gets analyzed.
-2. **Job-Readiness Tracking**:
-   - `overallProgress` is a pre-save calculated field based on the percentage of completed topics.
-   - `readinessBoost` is a virtual field where each verified "contribution" type milestone adds a 5% boost to the user's perceived job readiness score.
+The `/api/dashboard/student-metrics` endpoint aggregates:
+- The `overallScore` of the most recent active `Resume`.
+- The `overallProgress` and `readinessBoost` from `LearningProgress`.
+- The moving average of the last 5 `InterviewSession` scores.
 
-### C. Student Dashboard & Job Search
-- **Dashboard Aggregation**: The dashboard fetches the latest active resume score, the overall learning progress, and the average mock interview score to present a unified view of the student's readiness.
-- **Job Application Workflow**: Students can browse job postings. When applying, the Job Matcher calculates a semantic match score between the student's active resume and the job description.
+### The Job Application Workflow
+When a student views a job board (`JobBoard.jsx`), the system provides instant feedback on their suitability.
+
+1. **Semantic Job Matching**: Before applying, the `Job Matcher` service compares the student's active resume against the `JobPosting` description.
+2. **AI Cover Letter Generator**: The student clicks "Apply". A modal offers to generate an AI cover letter. The backend merges the job requirements and the student's resume into an LLM prompt, returning a personalized narrative.
+3. **Application Tracking**: A `JobApplication` document is created. The Recruiter receives a Socket.IO notification, and the application appears in the Recruiter's dashboard sorted by the calculated AI Match Score.
 
 ---
 
-## 3. Database Models
+## 5. Exhaustive Database Models
 
-### InterviewSession (`server/src/database/models/InterviewSession.js`)
+### A. InterviewSession Schema (`server/src/database/models/InterviewSession.js`)
+
 Tracks the entire lifecycle of a mock interview.
-- `userId`: Reference to the Student.
-- `status`: `in_progress`, `completed`, `abandoned`.
-- `answers`: Array of subdocuments containing the audio transcript, expected vs. detected concepts, technical/communication scores, and tutor overrides.
-- `overallScore`: Weighted average calculated upon completion.
-- `tutorOverallFeedback`: Manual feedback provided by an assigned tutor.
 
-### LearningProgress (`server/src/database/models/LearningProgress.js`)
+```json
+{
+  "_id": "ObjectId",
+  "userId": "ObjectId (ref: User)",
+  "topic": "React.js",
+  "difficulty": "intermediate",
+  "status": "completed", // 'in_progress', 'completed', 'abandoned'
+  "startedAt": "ISODate",
+  "completedAt": "ISODate",
+  "overallScore": 84.5,
+  "tutorOverallFeedback": "Great technical understanding, but work on speaking clearer.",
+  "answers": [
+    {
+      "questionId": "ObjectId (ref: QuestionBank)",
+      "transcript": "Well, useEffect is a hook that manages side effects...",
+      "audioUrl": "https://s3.aws.com/bucket/audio1.webm", // Optional fallback
+      "scores": {
+        "technicalAccuracy": 90,
+        "communicationQuality": 75,
+        "conceptRelevance": 85
+      },
+      "matchedConcepts": ["side effects", "component lifecycle"],
+      "missingConcepts": ["dependency array cleanup"],
+      "aiError": false,
+      "tutorOverride": null
+    }
+  ]
+}
+```
+
+### B. LearningProgress Schema (`server/src/database/models/LearningProgress.js`)
+
 Tracks the student's dynamic learning roadmap.
-- `roadmap`: Array of `topicProgressSchema` containing the topic name, type (`learning` vs `contribution`), and status.
-- `overallProgress`: Pre-save hook calculates percentage of completed topics.
-- `tutorsTracking`: Array of Tutor user IDs authorized to view and modify this roadmap.
-- **Virtuals**: `hasTutorResources` (checks if a tutor assigned custom URLs) and `readinessBoost` (calculates contribution bonus).
 
-### QuestionBank (`server/src/database/models/QuestionBank.js`)
-Stores the pool of interview questions, expected answers, and required concepts for the AI to benchmark against.
+```json
+{
+  "_id": "ObjectId",
+  "userId": "ObjectId (ref: User)",
+  "overallProgress": 65, // Calculated Pre-save
+  "tutorsTracking": ["ObjectId (ref: User)"], // Tutors authorized to view this
+  "roadmap": [
+    {
+      "nodeId": "UUID",
+      "title": "React Context API",
+      "type": "learning", // 'learning' or 'contribution'
+      "status": "completed", // 'locked', 'pending', 'completed'
+      "dependsOn": [],
+      "resourceUrls": ["https://react.dev/reference/react/useContext"]
+    },
+    {
+      "nodeId": "UUID",
+      "title": "Redux Toolkit Open Source PR",
+      "type": "contribution",
+      "status": "pending",
+      "dependsOn": ["nodeId_1"]
+    }
+  ]
+}
+```
+
+### C. QuestionBank Schema (`server/src/database/models/QuestionBank.js`)
+
+The static pool of questions the AI benchmarks against.
+
+```json
+{
+  "_id": "ObjectId",
+  "topic": "React.js",
+  "difficulty": "intermediate",
+  "questionText": "Explain the purpose of the dependency array in useEffect.",
+  "expectedAnswer": "The dependency array controls when the effect runs...",
+  "expectedConcepts": ["re-renders", "optimization", "cleanup function", "stale closures"],
+  "requiredKeywords": ["useEffect", "dependencies", "array"]
+}
+```
 
 ---
 
-## 4. API Endpoints
+## 6. Comprehensive API Endpoints Contract
 
-### Interviews
-| Method | Endpoint | Description | Auth |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/api/interviews/start` | Starts a new session, fetches questions | Student |
-| `GET` | `/api/interviews/:id` | Get active session details | Student |
-| `POST` | `/api/interviews/:id/answer` | Submit audio/text for AI evaluation | Student |
-| `POST` | `/api/interviews/:id/complete` | Finalize session and calculate overall score | Student |
-| `GET` | `/api/interviews/history` | Paginated interview history | Student |
-| `GET` | `/api/interviews/ai-status` | Health check for Python AI Microservice | Any |
-| `POST` | `/api/interviews/tutor/sessions/:id/feedback` | Submit manual tutor feedback (Socket trigger) | Tutor |
+### Interview Management (`/api/interviews`)
 
-### Roadmaps
-| Method | Endpoint | Description | Auth |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/api/roadmap/me` | Fetch active roadmap | Student |
-| `POST` | `/api/roadmap/sync` | Sync roadmap with resume gap analysis | Student |
-| `PATCH`| `/api/roadmap/update-topic` | Mark a milestone as completed | Student |
+| Method | Endpoint | Description | Auth | Request Payload | Response |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `POST` | `/start` | Initializes session | Student | `{ topic, difficulty }` | `201 Created`: `{ sessionId, firstQuestion }` |
+| `GET` | `/:id` | Fetch active state | Student | - | `200 OK`: `{ sessionData, currentQuestionIndex }` |
+| `POST` | `/:id/answer` | Submit transcript/audio | Student | `FormData: { audioBlob }` or JSON `{ text }` | `200 OK`: `{ aiFeedback, nextQuestion }` |
+| `POST` | `/:id/complete` | Finalize session | Student | - | `200 OK`: `{ finalScore, summary }` |
+| `GET` | `/history` | Paginated past sessions | Student | `?page=1&limit=10` | `200 OK`: `{ data: [...], totalPages }` |
+| `POST` | `/tutor/sessions/:id/feedback`| Manual grading | Tutor | `{ questionId, overrideScore, feedback }` | `200 OK` (Triggers Socket emission) |
+
+### Roadmap Syncing (`/api/roadmap`)
+
+| Method | Endpoint | Description | Auth | Request Payload | Response |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `GET` | `/me` | Fetch active roadmap | Student | - | `200 OK`: `{ roadmap, overallProgress, readinessBoost }` |
+| `POST` | `/sync` | Auto-sync with Resume | Student | `{ resumeId }` | `200 OK`: `{ addedNodesCount }` |
+| `PATCH`| `/update-topic` | Mark node completed | Student | `{ nodeId, status: 'completed' }` | `200 OK`: `{ newOverallProgress }` |
 
 ---
 
-## 5. Key Files Reference
+## 7. Security, Authorization & Error Handling
+
+### Role-Based Access Control (RBAC)
+The Student Module relies strictly on JWT claims.
+- **Route Guards**: Endpoints like `/api/interviews/start` utilize a middleware `requireRole('student')`. If a Tutor attempts to start an interview, they receive a `403 Forbidden`.
+- **Tutor Data Access**: A Tutor cannot arbitrarily view any student's `LearningProgress`. They must exist in the `LearningProgress.tutorsTracking` array, ensuring strict data privacy.
+
+### Network Resiliency
+Given that the primary demographic includes students on varied network qualities:
+- **Audio Chunking**: The frontend does not wait for a 5-minute audio recording to finish before sending. It chunks the recording into smaller blobs (if configured) or uploads immediately upon question completion to prevent data loss.
+- **Optimistic UI Updates**: When a student marks a Roadmap node as "completed", the frontend immediately updates the UI (removing the lock icons) while the `PATCH /api/roadmap/update-topic` request resolves in the background. If the request fails, a React `toast.error` appears, and the node reverts to "pending".
+
+---
+
+## 8. Directory & Key Files Reference
+
+To quickly navigate the codebase for Student features:
 
 **Frontend Components (`client/src/modules/`)**
-- `mock-interview/pages/InterviewLobby.jsx` - Start page for interviews.
-- `mock-interview/pages/InterviewSession.jsx` - Main interface handling audio recording.
-- `roadmap/pages/RoadmapPage.jsx` - Interactive skill tree viewer.
-- `student-jobs/pages/JobBoard.jsx` - Job browsing and application flow.
+- `mock-interview/pages/InterviewLobby.jsx` - Configuration and mic check UI.
+- `mock-interview/pages/InterviewSession.jsx` - The complex state machine managing the active interview, timers, and MediaRecorder API.
+- `roadmap/pages/RoadmapPage.jsx` - The visual skill tree viewer (parsing the `dependsOn` arrays into a UI).
+- `student-jobs/pages/JobBoard.jsx` - Job browsing and the AI cover letter application flow.
 
 **Backend Services (`server/src/modules/`)**
-- `interviews/controller.js` & `interviews/service.js` - Core session and AI coordination logic.
-- `roadmap/controller.js` - Roadmap sync and progress calculation.
-- `dashboard/service.js` - Data aggregation for student metrics.
+- `interviews/controller.js` & `interviews/service.js` - Core session coordination, Redis locking, and database updates.
+- `roadmap/controller.js` - Roadmap DAG manipulation, dependency checking, and progress calculation.
+- `dashboard/service.js` - The heavy MongoDB Aggregation pipeline for the unified student heads-up display.
 
-**AI Integration**
-- `integrations/aiInterviewService.js` - Node.js wrapper making HTTP calls to the Python FastAPI microservice.
+**AI Integration Layer**
+- `integrations/aiInterviewService.js` - A resilient Node.js Axios wrapper that makes HTTP calls to the Python FastAPI microservice, implementing strict timeouts and `catch` blocks for the Fail-Soft mode.
